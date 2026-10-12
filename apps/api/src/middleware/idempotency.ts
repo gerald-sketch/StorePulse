@@ -39,13 +39,15 @@ export function idempotent(endpoint: string) {
     if (existing) {
       const storedStatus = (existing.response as { status?: string } | null)?.status;
       if (storedStatus === IN_PROGRESS) {
-        return res.status(202).json({
+        res.status(202).json({
           error: "IDEMPOTENCY_IN_PROGRESS",
           message: "This request is already being processed.",
         });
+        return;
       }
 
-      return res.status(existing.statusCode).json(existing.response);
+      res.status(existing.statusCode).json(existing.response);
+      return;
     }
 
     try {
@@ -68,12 +70,14 @@ export function idempotent(endpoint: string) {
         if (replay) {
           const storedStatus = (replay.response as { status?: string } | null)?.status;
           if (storedStatus === IN_PROGRESS) {
-            return res.status(202).json({
+            res.status(202).json({
               error: "IDEMPOTENCY_IN_PROGRESS",
               message: "This request is already being processed.",
             });
+            return;
           }
-          return res.status(replay.statusCode).json(replay.response);
+          res.status(replay.statusCode).json(replay.response);
+          return;
         }
       }
       console.error("[Idempotency reserve error]", error);
