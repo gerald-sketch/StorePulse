@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-store";
 import { useBranchStore } from "@/lib/branch-store";
+import { usePwaStore } from "@/lib/pwa-store";
 import {
   getPendingSales,
   PendingSale,
@@ -14,6 +15,7 @@ import {
 export function OfflineSalesQueue() {
   const user = useAuth((state) => state.user);
   const branchId = useBranchStore((state) => state.selectedBranchId);
+  const online = usePwaStore((state) => state.online);
   const [sales, setSales] = useState<PendingSale[]>([]);
 
   const reload = useCallback(async () => {
@@ -107,18 +109,20 @@ export function OfflineSalesQueue() {
                 <p className="text-xs text-muted-foreground">
                   {sale.status === "needs-attention"
                     ? sale.error ?? "This sale could not be synced"
-                    : "Waiting for connection"}
+                    : online
+                      ? "Waiting to sync"
+                      : "Waiting for connection"}
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
-                {sale.status === "needs-attention" && (
+                {(sale.status === "needs-attention" || online) && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => void retry(sale)}
                   >
                     <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                    Retry
+                    {sale.status === "needs-attention" ? "Retry" : "Sync now"}
                   </Button>
                 )}
                 <Button

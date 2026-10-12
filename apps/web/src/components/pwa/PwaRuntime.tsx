@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import axios from "axios";
 import {
@@ -33,14 +34,44 @@ export async function requestBackgroundSync(): Promise<void> {
 }
 
 export function PwaRuntime() {
+  const queryClient = useQueryClient();
   const user = useAuth((state) => state.user);
   const branchId = useBranchStore((state) => state.selectedBranchId);
   const setOnline = usePwaStore((state) => state.setOnline);
   const setInstallPrompt = usePwaStore((state) => state.setInstallPrompt);
   const setSalesStatus = usePwaStore((state) => state.setSalesStatus);
   const syncing = useRef(false);
+  const connectionCheck = useRef<Promise<boolean> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryDelay = useRef(5000);
+
+  const checkConnection = useCallback((): Promise<boolean> => {
+    if (!navigator.onLine) {
+      setOnline(false);
+      return Promise.resolve(false);
+    }
+    if (connectionCheck.current) return connectionCheck.current;
+
+    connectionCheck.current = api
+      .get<{ ok?: boolean }>("/health", {
+        timeout: 5000,
+        headers: { "Cache-Control": "no-cache" },
+      })
+      .then((response) => {
+        const reachable = navigator.onLine && response.data?.ok === true;
+        setOnline(reachable);
+        return reachable;
+      })
+      .catch(() => {
+        setOnline(false);
+        return false;
+      })
+      .finally(() => {
+        connectionCheck.current = null;
+      });
+
+    return connectionCheck.current;
+  }, [setOnline]);
 
   const refreshSalesStatus = useCallback(async () => {
     const queued = await getPendingSales();
@@ -51,30 +82,40 @@ export function PwaRuntime() {
   }, [setSalesStatus]);
 
   const syncSales = useCallback(async () => {
-    if (!navigator.onLine || !user || !branchId || syncing.current) return;
+    if (!usePwaStore.getState().online || !user || !branchId || syncing.current) return;
     syncing.current = true;
     let shouldRetry = false;
     try {
+      const queued = await getPendingSales();
+      const salesToSync = queued.filter(
+        (sale) =>
+          sale.status === "pending" &&
+          sale.userId === user.id &&
+          sale.businessId === user.businessId &&
+          sale.branchId === branchId,
+      );
+      if (salesToSync.length === 0) return;
+
       if (!getAccessToken()) {
         const token = await refreshAccessToken();
-        if (!token) return;
+        if (!token) {
+          shouldRetry = true;
+          return;
+        }
       }
 
-      const queued = await getPendingSales();
-      for (const sale of queued) {
-        if (
-          sale.status !== "pending" ||
-          sale.userId !== user.id ||
-          sale.businessId !== user.businessId ||
-          sale.branchId !== branchId
-        ) {
-          continue;
-        }
+      let syncedCount = 0;
+      for (const sale of salesToSync) {
         try {
-          await api.post("/pos/checkout", sale.payload, {
+          const response = await api.post("/pos/checkout", sale.payload, {
             headers: { "Idempotency-Key": sale.id },
           });
+          if (response.status === 202) {
+            shouldRetry = true;
+            break;
+          }
           await removePendingSale(sale.id);
+          syncedCount += 1;
         } catch (error) {
           const status = axios.isAxiosError(error)
             ? error.response?.status
@@ -93,6 +134,17 @@ export function PwaRuntime() {
           toast.error(`An offline sale needs attention: ${apiErrorMessage(error)}`);
         }
       }
+      if (syncedCount > 0) {
+        await Promise.all(
+          [
+            ["products"],
+            ["dashboard"],
+            ["reports"],
+            ["pos", "products"],
+            ["sales-history"],
+          ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+        );
+      }
       if (!shouldRetry) retryDelay.current = 5000;
     } catch (error) {
       console.error("Unable to sync offline sales", error);
@@ -109,16 +161,18 @@ export function PwaRuntime() {
         retryTimer.current = setTimeout(() => {
           retryTimer.current = null;
           retryDelay.current = Math.min(retryDelay.current * 2, 60000);
-          void syncSales();
+          void checkConnection().then((reachable) => {
+            if (reachable) void syncSales();
+          });
         }, retryDelay.current);
       }
     }
-  }, [branchId, refreshSalesStatus, user]);
+  }, [branchId, checkConnection, queryClient, refreshSalesStatus, user]);
 
   useEffect(() => {
-    const updateConnection = () => {
-      setOnline(navigator.onLine);
-      if (navigator.onLine) void syncSales();
+    const updateConnection = async () => {
+      const reachable = await checkConnection();
+      if (reachable) void syncSales();
     };
     const promptInstall = (event: Event) => {
       event.preventDefault();
@@ -150,7 +204,10 @@ export function PwaRuntime() {
     window.addEventListener("appinstalled", installed);
     window.addEventListener("smallbiz-offline-queue-changed", queueChanged);
     window.addEventListener("smallbiz-retry-offline-sales", retrySales);
-    updateConnection();
+    const syncInterval = window.setInterval(() => {
+      void updateConnection();
+    }, 10000);
+    void updateConnection();
     void refreshSalesStatus().catch((error: unknown) => {
       console.error("Unable to refresh offline sales status", error);
     });
@@ -161,6 +218,7 @@ export function PwaRuntime() {
         clearTimeout(retryTimer.current);
         retryTimer.current = null;
       }
+      window.clearInterval(syncInterval);
       window.removeEventListener("online", updateConnection);
       window.removeEventListener("offline", updateConnection);
       window.removeEventListener("focus", updateConnection);
@@ -174,11 +232,13 @@ export function PwaRuntime() {
         navigator.serviceWorker.removeEventListener("message", syncMessage);
       }
     };
-  }, [refreshSalesStatus, setInstallPrompt, setOnline, syncSales]);
+  }, [checkConnection, refreshSalesStatus, setInstallPrompt, syncSales]);
 
   useEffect(() => {
-    if (navigator.onLine) void syncSales();
-  }, [branchId, syncSales, user?.id]);
+    void checkConnection().then((reachable) => {
+      if (reachable) void syncSales();
+    });
+  }, [branchId, checkConnection, syncSales, user?.id]);
 
   return null;
 }
