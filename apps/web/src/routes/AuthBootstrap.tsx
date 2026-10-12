@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { api, setAccessToken } from "@/lib/api";
+import { refreshAccessToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth-store";
 
 export function AuthBootstrap({ children }: { children: React.ReactNode }) {
@@ -19,10 +19,7 @@ export function AuthBootstrap({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const res = await api.post<{ accessToken: string }>("/auth/refresh");
-        if (!cancelled && res.data?.accessToken) {
-          setAccessToken(res.data.accessToken);
-        }
+        await refreshAccessToken();
       } catch (error) {
         if (
           !cancelled &&
@@ -47,8 +44,7 @@ export function AuthBootstrap({ children }: { children: React.ReactNode }) {
     const restoreSession = async () => {
       if (!useAuth.getState().user) return;
       try {
-        const response = await api.post<{ accessToken?: string }>("/auth/refresh");
-        if (response.data.accessToken) setAccessToken(response.data.accessToken);
+        await refreshAccessToken();
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           useAuth.getState().clear();

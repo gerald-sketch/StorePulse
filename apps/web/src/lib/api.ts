@@ -81,10 +81,17 @@ async function doRefresh(): Promise<string | null> {
     setAccessToken(token);
 
     return token;
-  } catch {
+  } catch (error) {
     setAccessToken(null);
-    return null;
+    throw error;
   }
+}
+
+export function refreshAccessToken(): Promise<string | null> {
+  refreshing ??= doRefresh().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
 }
 
 /*
@@ -121,11 +128,7 @@ api.interceptors.response.use(
       /*
        * Prevent multiple simultaneous refresh calls.
        */
-      refreshing ??= doRefresh().finally(() => {
-        refreshing = null;
-      });
-
-      const token = await refreshing;
+      const token = await refreshAccessToken().catch(() => null);
 
       if (token) {
         original.headers.Authorization = `Bearer ${token}`;

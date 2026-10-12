@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import axios from "axios";
-import { api, apiErrorMessage, getAccessToken, setAccessToken } from "@/lib/api";
+import {
+  api,
+  apiErrorMessage,
+  getAccessToken,
+  refreshAccessToken,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-store";
 import { useBranchStore } from "@/lib/branch-store";
 import {
@@ -34,6 +39,8 @@ export function PwaRuntime() {
   const setInstallPrompt = usePwaStore((state) => state.setInstallPrompt);
   const setSalesStatus = usePwaStore((state) => state.setSalesStatus);
   const syncing = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryDelay = useRef(5000);
 
   const refreshSalesStatus = useCallback(async () => {
     const queued = await getPendingSales();
@@ -46,11 +53,11 @@ export function PwaRuntime() {
   const syncSales = useCallback(async () => {
     if (!navigator.onLine || !user || !branchId || syncing.current) return;
     syncing.current = true;
+    let shouldRetry = false;
     try {
       if (!getAccessToken()) {
-        const response = await api.post<{ accessToken?: string }>("/auth/refresh");
-        if (!response.data.accessToken) return;
-        setAccessToken(response.data.accessToken);
+        const token = await refreshAccessToken();
+        if (!token) return;
       }
 
       const queued = await getPendingSales();
@@ -72,7 +79,11 @@ export function PwaRuntime() {
           const status = axios.isAxiosError(error)
             ? error.response?.status
             : undefined;
-          if (status === undefined || status >= 500 || status === 401) break;
+          if (status === undefined || status >= 500) {
+            shouldRetry = true;
+            break;
+          }
+          if (status === 401) break;
 
           await updatePendingSale({
             ...sale,
@@ -82,22 +93,43 @@ export function PwaRuntime() {
           toast.error(`An offline sale needs attention: ${apiErrorMessage(error)}`);
         }
       }
+      if (!shouldRetry) retryDelay.current = 5000;
     } catch (error) {
       console.error("Unable to sync offline sales", error);
+      shouldRetry = true;
     } finally {
       syncing.current = false;
-      await refreshSalesStatus();
+      window.dispatchEvent(new Event("smallbiz-offline-queue-changed"));
+      try {
+        await refreshSalesStatus();
+      } catch (error) {
+        console.error("Unable to refresh offline sales status", error);
+      }
+      if (shouldRetry && navigator.onLine && retryTimer.current === null) {
+        retryTimer.current = setTimeout(() => {
+          retryTimer.current = null;
+          retryDelay.current = Math.min(retryDelay.current * 2, 60000);
+          void syncSales();
+        }, retryDelay.current);
+      }
     }
   }, [branchId, refreshSalesStatus, user]);
 
   useEffect(() => {
-    const updateConnection = () => setOnline(navigator.onLine);
+    const updateConnection = () => {
+      setOnline(navigator.onLine);
+      if (navigator.onLine) void syncSales();
+    };
     const promptInstall = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as InstallPromptEvent);
     };
     const installed = () => setInstallPrompt(null);
-    const queueChanged = () => void refreshSalesStatus();
+    const queueChanged = () => {
+      void refreshSalesStatus().catch((error: unknown) => {
+        console.error("Unable to refresh offline sales status", error);
+      });
+    };
     const syncMessage = (event: MessageEvent<{ type?: string }>) => {
       if (event.data?.type === "SYNC_OFFLINE_SALES") void syncSales();
     };
@@ -119,10 +151,16 @@ export function PwaRuntime() {
     window.addEventListener("smallbiz-offline-queue-changed", queueChanged);
     window.addEventListener("smallbiz-retry-offline-sales", retrySales);
     updateConnection();
-    void refreshSalesStatus();
+    void refreshSalesStatus().catch((error: unknown) => {
+      console.error("Unable to refresh offline sales status", error);
+    });
     if (navigator.onLine) void syncSales();
 
     return () => {
+      if (retryTimer.current !== null) {
+        clearTimeout(retryTimer.current);
+        retryTimer.current = null;
+      }
       window.removeEventListener("online", updateConnection);
       window.removeEventListener("offline", updateConnection);
       window.removeEventListener("focus", updateConnection);
