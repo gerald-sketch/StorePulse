@@ -20,9 +20,11 @@ const EnvSchema = z.object({
 
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 
-  CORS_ORIGINS: z.string().default("http://localhost:5173"),
+  CORS_ORIGINS: z
+    .string()
+    .default("http://localhost:5173,https://storepulsee.vercel.app"),
 
-  APP_URL: z.string().default("http://localhost:5173"),
+  APP_URL: z.string().default("https://storepulsee.vercel.app"),
 
   // Email
   EMAIL_USER: z.string().email().optional(),
