@@ -5,6 +5,7 @@ import { Prisma } from "../../generated/prisma/client";
 
 export async function list(
   businessId: string,
+  branchId: string,
   page: number,
   limit: number,
   search?: string,
@@ -27,7 +28,10 @@ export async function list(
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { category: { select: { id: true, name: true } } },
+      include: {
+        category: { select: { id: true, name: true } },
+        inventory: { where: { branchId }, select: { stock: true } },
+      },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
@@ -35,16 +39,33 @@ export async function list(
     prisma.product.count({ where }),
   ]);
 
-  return { items, total, page, limit, pages: Math.ceil(total / limit) };
+  return {
+    items: items.map(({ inventory, ...product }) => ({
+      ...product,
+      stock: inventory[0]?.stock ?? 0,
+    })),
+    total,
+    page,
+    limit,
+    pages: Math.ceil(total / limit),
+  };
 }
 
-export async function getById(businessId: string, id: string) {
+export async function getById(
+  businessId: string,
+  branchId: string,
+  id: string,
+) {
   const product = await prisma.product.findFirst({
     where: { id, businessId, deletedAt: null },
-    include: { category: { select: { id: true, name: true } } },
+    include: {
+      category: { select: { id: true, name: true } },
+      inventory: { where: { branchId }, select: { stock: true } },
+    },
   });
   if (!product) throw new AppError(404, "NOT_FOUND", "Product not found");
-  return product;
+  const { inventory, ...details } = product;
+  return { ...details, stock: inventory[0]?.stock ?? 0 };
 }
 
 async function assertCategoryBelongsToBusiness(
@@ -63,6 +84,7 @@ async function assertCategoryBelongsToBusiness(
 
 export async function create(
   businessId: string,
+  branchId: string,
   _userId: string,
   input: CreateProductInput,
 ) {
@@ -76,27 +98,41 @@ export async function create(
     throw new AppError(409, "SKU_TAKEN", "SKU already exists in this business");
   }
 
-  return prisma.product.create({
-    data: {
-      businessId,
-      name: input.name,
-      sku: input.sku,
-      categoryId: input.categoryId ?? null,
-      price: input.price,
-      cost: input.cost,
-      stock: input.stock,
-      status: input.status,
-    },
-    include: { category: { select: { id: true, name: true } } },
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.create({
+      data: {
+        businessId,
+        name: input.name,
+        sku: input.sku,
+        categoryId: input.categoryId ?? null,
+        price: input.price,
+        cost: input.cost,
+        status: input.status,
+      },
+      include: { category: { select: { id: true, name: true } } },
+    });
+    const branches = await tx.branch.findMany({
+      where: { businessId },
+      select: { id: true },
+    });
+    await tx.branchInventory.createMany({
+      data: branches.map((branch) => ({
+        branchId: branch.id,
+        productId: product.id,
+        stock: branch.id === branchId ? input.stock : 0,
+      })),
+    });
+    return { ...product, stock: input.stock };
   });
 }
 
 export async function update(
   businessId: string,
+  branchId: string,
   id: string,
   input: UpdateProductInput,
 ) {
-  await getById(businessId, id);
+  await getById(businessId, branchId, id);
 
   if (input.categoryId !== undefined) {
     await assertCategoryBelongsToBusiness(businessId, input.categoryId);
@@ -116,23 +152,41 @@ export async function update(
     }
   }
 
-  return prisma.product.update({
-    where: { id },
-    data: {
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.sku !== undefined && { sku: input.sku }),
-      ...(input.categoryId !== undefined && { categoryId: input.categoryId }),
-      ...(input.price !== undefined && { price: input.price }),
-      ...(input.cost !== undefined && { cost: input.cost }),
-      ...(input.stock !== undefined && { stock: input.stock }),
-      ...(input.status !== undefined && { status: input.status }),
-    },
-    include: { category: { select: { id: true, name: true } } },
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.update({
+      where: { id },
+      data: {
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.sku !== undefined && { sku: input.sku }),
+        ...(input.categoryId !== undefined && { categoryId: input.categoryId }),
+        ...(input.price !== undefined && { price: input.price }),
+        ...(input.cost !== undefined && { cost: input.cost }),
+        ...(input.status !== undefined && { status: input.status }),
+      },
+      include: { category: { select: { id: true, name: true } } },
+    });
+    const inventory =
+      input.stock === undefined
+        ? await tx.branchInventory.findUnique({
+            where: { branchId_productId: { branchId, productId: id } },
+            select: { stock: true },
+          })
+        : await tx.branchInventory.upsert({
+            where: { branchId_productId: { branchId, productId: id } },
+            create: { branchId, productId: id, stock: input.stock },
+            update: { stock: input.stock },
+            select: { stock: true },
+          });
+    return { ...product, stock: inventory?.stock ?? 0 };
   });
 }
 
-export async function softDelete(businessId: string, id: string) {
-  await getById(businessId, id);
+export async function softDelete(
+  businessId: string,
+  branchId: string,
+  id: string,
+) {
+  await getById(businessId, branchId, id);
   return prisma.product.update({
     where: { id },
     data: { deletedAt: new Date() },

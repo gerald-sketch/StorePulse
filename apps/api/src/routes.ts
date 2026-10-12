@@ -13,6 +13,7 @@ import { reportsRouter } from "./modules/reports/reports.routes";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { settingsRouter } from "./modules/settings/settings.routes";
 import { forecastingRouter } from "./modules/forecasting/forecasting.routes";
+import { branchesRouter } from "./modules/branches/branches.routes";
 
 export const routes = Router();
 
@@ -21,6 +22,7 @@ routes.get("/health", (_req, res) => {
 });
 
 routes.use("/auth", authRouter);
+routes.use("/branches", branchesRouter);
 routes.use("/categories", categoriesRouter);
 routes.use("/products", productsRouter);
 routes.use("/inventory", inventoryRouter);

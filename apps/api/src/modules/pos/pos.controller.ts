@@ -7,6 +7,11 @@ function u(req: Request) {
   return req.user;
 }
 
+function branch(req: Request) {
+  if (!req.branchId) throw new AppError(400, "BRANCH_REQUIRED", "Select a branch");
+  return req.branchId;
+}
+
 export async function checkout(
   req: Request,
   res: Response,
@@ -14,7 +19,12 @@ export async function checkout(
 ): Promise<void> {
   try {
     const user = u(req);
-    const sale = await posService.checkout(user.businessId, user.id, req.body);
+    const sale = await posService.checkout(
+      user.businessId,
+      branch(req),
+      user.id,
+      req.body,
+    );
     res.status(201).json(sale);
   } catch (e) {
     next(e);
@@ -30,7 +40,9 @@ export async function list(
     const user = u(req);
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
-    res.json(await posService.listSales(user.businessId, page, limit));
+    res.json(
+      await posService.listSales(user.businessId, branch(req), page, limit),
+    );
   } catch (e) {
     next(e);
   }
@@ -47,7 +59,7 @@ export async function getById(
     if (typeof id !== "string" || !id) {
       throw new AppError(400, "INVALID_ID", "Missing ID");
     }
-    res.json(await posService.getSale(user.businessId, id));
+    res.json(await posService.getSale(user.businessId, branch(req), id));
   } catch (e) {
     next(e);
   }

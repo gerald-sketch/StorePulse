@@ -4,21 +4,28 @@ import { env } from "../../config/env";
 import { AppError } from "../../middleware/errorHandler";
 import { CreateEmployeeInput, UpdateEmployeeInput } from "@sb/shared";
 
-export async function list(businessId: string) {
+export async function list(businessId: string, branchId?: string) {
   return prisma.user.findMany({
-    where: { businessId, deletedAt: null },
+    where: { businessId, deletedAt: null, ...(branchId ? { branchId } : {}) },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
       createdAt: true,
+      branch: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 }
 
 export async function create(businessId: string, input: CreateEmployeeInput) {
+  const branch = await prisma.branch.findFirst({
+    where: { id: input.branchId, businessId },
+    select: { id: true },
+  });
+  if (!branch) throw new AppError(400, "INVALID_BRANCH", "Branch not found");
+
   const existing = await prisma.user.findUnique({
     where: { email: input.email },
     select: { id: true },
@@ -36,8 +43,16 @@ export async function create(businessId: string, input: CreateEmployeeInput) {
       name: input.name,
       passwordHash,
       role: input.role,
+      branchId: input.branchId,
     },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      branch: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -52,13 +67,29 @@ export async function update(
   });
   if (!user) throw new AppError(404, "NOT_FOUND", "Employee not found");
 
+  if (input.branchId) {
+    const branch = await prisma.branch.findFirst({
+      where: { id: input.branchId, businessId },
+      select: { id: true },
+    });
+    if (!branch) throw new AppError(400, "INVALID_BRANCH", "Branch not found");
+  }
+
   return prisma.user.update({
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.role !== undefined && { role: input.role }),
+      ...(input.branchId !== undefined && { branchId: input.branchId }),
     },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      branch: { select: { id: true, name: true } },
+    },
   });
 }
 

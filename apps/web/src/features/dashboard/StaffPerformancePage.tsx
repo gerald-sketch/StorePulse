@@ -6,7 +6,6 @@ import {
   Crown,
   Award,
   Clock,
-  BarChart3,
   User,
   ShieldCheck,
   Mail,
@@ -18,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 function pesoCompact(n: number) {
   return `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -340,22 +340,10 @@ export function StaffPerformancePage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <BarChart3 className="h-4 w-4 text-primary" />
-            </div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
-              Team Performance
-            </h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Monitor sales by staff member
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Team Performance"
+        description="Monitor sales by staff member"
+      />
 
       {/* Summary cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">

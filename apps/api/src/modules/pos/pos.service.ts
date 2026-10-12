@@ -21,6 +21,7 @@ interface LockedProduct {
 
 export async function checkout(
   businessId: string,
+  branchId: string,
   userId: string,
   input: CheckoutInput,
 ) {
@@ -40,13 +41,27 @@ export async function checkout(
     // ─── 1. Lock each product row in sorted order ───
     const lockedProducts: LockedProduct[] = [];
     for (const id of sortedIds) {
+      const product = await tx.product.findFirst({
+        where: { id, businessId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!product) {
+        throw new AppError(404, "PRODUCT_NOT_FOUND", "Product not found");
+      }
+      await tx.branchInventory.upsert({
+        where: { branchId_productId: { branchId, productId: id } },
+        create: { branchId, productId: id, stock: 0 },
+        update: {},
+      });
       const rows = await tx.$queryRaw<LockedProduct[]>`
-        SELECT id, stock, name, sku, price::text AS price
-        FROM "Product"
-        WHERE id::text = ${id}
-          AND "businessId"::text = ${businessId}
-          AND "deletedAt" IS NULL
-        FOR UPDATE
+        SELECT p.id, i.stock, p.name, p.sku, p.price::text AS price
+        FROM "Product" p
+        JOIN "BranchInventory" i
+          ON i."productId" = p.id AND i."branchId" = ${branchId}
+        WHERE p.id::text = ${id}
+          AND p."businessId"::text = ${businessId}
+          AND p."deletedAt" IS NULL
+        FOR UPDATE OF p, i
       `;
       if (rows.length === 0) {
         throw new AppError(404, "PRODUCT_NOT_FOUND", "Product not found");
@@ -68,6 +83,16 @@ export async function checkout(
         );
       }
       const unitPrice = Number(p.price);
+      const expectedPrice = input.expectedPrices?.find(
+        (item) => item.productId === p.id,
+      )?.unitPrice;
+      if (expectedPrice !== undefined && expectedPrice !== unitPrice) {
+        throw new AppError(
+          409,
+          "PRICE_CHANGED",
+          `The price for "${p.name}" changed. Review the sale and try again.`,
+        );
+      }
       cart.push({
         productId: p.id,
         quantity: qty,
@@ -139,8 +164,10 @@ export async function checkout(
 
     // ─── 7. Deduct stock for each product ───
     for (const line of cart) {
-      await tx.product.update({
-        where: { id: line.productId },
+      await tx.branchInventory.update({
+        where: {
+          branchId_productId: { branchId, productId: line.productId },
+        },
         data: { stock: { decrement: line.quantity } },
       });
     }
@@ -149,6 +176,7 @@ export async function checkout(
     const sale = await tx.sale.create({
       data: {
         businessId,
+        branchId,
         customerId: input.customerId ?? null,
         userId,
         subtotal,
@@ -190,12 +218,13 @@ export async function checkout(
 
 export async function listSales(
   businessId: string,
+  branchId: string,
   page: number,
   limit: number,
 ) {
   const [items, total] = await Promise.all([
     prisma.sale.findMany({
-      where: { businessId, deletedAt: null },
+      where: { businessId, branchId, deletedAt: null },
       include: {
         items: true,
         customer: { select: { id: true, name: true } },
@@ -205,14 +234,14 @@ export async function listSales(
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.sale.count({ where: { businessId, deletedAt: null } }),
+    prisma.sale.count({ where: { businessId, branchId, deletedAt: null } }),
   ]);
   return { items, total, page, limit, pages: Math.ceil(total / limit) };
 }
 
-export async function getSale(businessId: string, id: string) {
+export async function getSale(businessId: string, branchId: string, id: string) {
   const sale = await prisma.sale.findFirst({
-    where: { id, businessId, deletedAt: null },
+    where: { id, businessId, branchId, deletedAt: null },
     include: {
       items: true,
       customer: true,

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useSuppliers } from "./use-suppliers";
 import { SupplierDialog } from "./SupplierDialog";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,17 +22,14 @@ export function SuppliersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Suppliers</h2>
-          <p className="text-sm text-muted-foreground">
-            Your supplier directory
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
+      <PageHeader title="Suppliers" description="Your supplier directory">
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="w-full rounded-xl sm:w-auto"
+        >
           <Plus className="h-4 w-4 mr-2" /> New supplier
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { ReportRangeQuery, TopProductsQuery, ExportQuery } from "@sb/shared";
 import { validate } from "../../middleware/validate";
-import { requireAuth, requireRole } from "../../middleware/auth";
+import { requireAuth, requireBranch, requireRole } from "../../middleware/auth";
 import * as c from "./reports.controller";
 
 export const reportsRouter = Router();
 
 reportsRouter.use(requireAuth);
 reportsRouter.use(requireRole(["OWNER", "MANAGER"]));
+reportsRouter.use(requireBranch);
 
 reportsRouter.get(
   "/sales-summary",

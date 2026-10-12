@@ -27,6 +27,7 @@ import {
   TrendingDown as SlowIcon,
 } from "lucide-react";
 import type { ForecastItem, ReorderAlert } from "./use-forecasting";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 function pesoCompact(n: number) {
   return `₱${n.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
@@ -267,24 +268,13 @@ export function ForecastingPage() {
 
   return (
     <div className="space-y-5">
-      {/* ─── Header ─── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-1">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-primary" />
-            </div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
-              Inventory Intelligence
-            </h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Predictions based on the last {data.windowDays} days of sales
-          </p>
-        </div>
+      <PageHeader
+        title="Inventory Intelligence"
+        description={`Predictions based on the last ${data.windowDays} days of sales`}
+      >
         <Badge
           variant="outline"
-          className="border-border/60 self-start lg:self-auto"
+          className="border-border/60"
         >
           <Calendar className="h-3 w-3 mr-1.5" />
           {new Date(data.generatedAt).toLocaleDateString("en-PH", {
@@ -294,7 +284,7 @@ export function ForecastingPage() {
             minute: "2-digit",
           })}
         </Badge>
-      </div>
+      </PageHeader>
 
       {/* ─── Empty states ─── */}
       {!hasData && (

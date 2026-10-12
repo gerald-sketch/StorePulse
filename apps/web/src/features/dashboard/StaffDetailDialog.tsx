@@ -1,4 +1,5 @@
-import { useStaffDetail } from "./use-staff-performance";
+import { useState } from "react";
+import { useStaffDetail, useStaffProductSales } from "./use-staff-performance";
 import {
   Dialog,
   DialogContent,
@@ -7,6 +8,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart,
@@ -26,6 +30,8 @@ import {
   Smartphone,
   Building2,
   Mail,
+  CalendarDays,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,8 +61,35 @@ interface Props {
   onClose: () => void;
 }
 
+const BUSINESS_UTC_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function businessToday() {
+  return new Date(Date.now() + BUSINESS_UTC_OFFSET_MS)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function shiftBusinessDate(day: string, days: number) {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatBusinessDate(day: string) {
+  return new Date(`${day}T12:00:00+08:00`).toLocaleDateString("en-PH", {
+    timeZone: "Asia/Manila",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export function StaffDetailDialog({ userId, onClose }: Props) {
   const { data, isLoading } = useStaffDetail(userId);
+  const [to, setTo] = useState(businessToday);
+  const [from, setFrom] = useState(() => shiftBusinessDate(businessToday(), -13));
+  const productSales = useStaffProductSales(userId, from, to);
 
   return (
     <Dialog open={!!userId} onOpenChange={(v) => !v && onClose()}>
@@ -342,6 +375,106 @@ export function StaffDetailDialog({ userId, onClose }: Props) {
                         </span>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Products sold by business day */}
+            <div className="mt-5">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                Products Sold by Day
+              </h3>
+              <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-border/60 p-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="staff-sales-from">From</Label>
+                  <Input
+                    id="staff-sales-from"
+                    type="date"
+                    value={from}
+                    max={to || businessToday()}
+                    onChange={(event) => setFrom(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="staff-sales-to">To</Label>
+                  <Input
+                    id="staff-sales-to"
+                    type="date"
+                    value={to}
+                    min={from}
+                    max={businessToday()}
+                    onChange={(event) => setTo(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              {from > to ? (
+                <p className="text-sm text-muted-foreground">
+                  Choose a start date on or before the end date.
+                </p>
+              ) : productSales.isLoading ? (
+                <Skeleton className="h-32 rounded-xl" />
+              ) : productSales.isError ? (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-destructive/30 p-4 text-center"
+                >
+                  <p className="text-sm text-destructive">
+                    Could not load sold-product history.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => void productSales.refetch()}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : productSales.data?.days.length === 0 ? (
+                <p className="rounded-xl bg-muted/20 py-6 text-center text-sm text-muted-foreground">
+                  No products sold in this date range.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {productSales.data?.days.map((day) => (
+                    <section
+                      key={day.day}
+                      className="overflow-hidden rounded-xl border border-border/60"
+                    >
+                      <h4 className="flex items-center gap-2 border-b border-border/60 bg-muted/20 px-3 py-2.5 text-xs font-semibold">
+                        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                        {formatBusinessDate(day.day)}
+                      </h4>
+                      <div className="divide-y divide-border/40 px-3">
+                        {day.items.map((item) => (
+                          <div
+                            key={`${item.productId}-${item.sku}-${item.name}`}
+                            className="flex items-center justify-between gap-3 py-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="break-words text-sm font-medium">
+                                {item.name}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                {item.sku} · {item.salesCount}{" "}
+                                {item.salesCount === 1 ? "sale" : "sales"}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-semibold tabular-nums">
+                                {item.unitsSold} sold
+                              </p>
+                              <p className="text-[11px] text-muted-foreground tabular-nums">
+                                {peso(item.revenue)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
               )}

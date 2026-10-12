@@ -4,6 +4,7 @@ import { CreatePurchaseInput } from "@sb/shared";
 
 export async function create(
   businessId: string,
+  branchId: string,
   _userId: string,
   input: CreatePurchaseInput,
 ) {
@@ -48,6 +49,7 @@ export async function create(
   return prisma.purchase.create({
     data: {
       businessId,
+      branchId,
       supplierId: input.supplierId,
       reference: input.reference,
       notes: input.notes,
@@ -59,12 +61,17 @@ export async function create(
   });
 }
 
-export async function receive(businessId: string, purchaseId: string) {
+export async function receive(
+  businessId: string,
+  branchId: string,
+  purchaseId: string,
+) {
   return prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string; status: string }>>`
       SELECT id, status FROM "Purchase"
       WHERE id::text = ${purchaseId}
         AND "businessId"::text = ${businessId}
+        AND "branchId"::text = ${branchId}
         AND "deletedAt" IS NULL
       FOR UPDATE
     `;
@@ -96,9 +103,12 @@ export async function receive(businessId: string, purchaseId: string) {
     const items = await tx.purchaseItem.findMany({ where: { purchaseId } });
 
     for (const item of items) {
-      await tx.product.update({
-        where: { id: item.productId },
-        data: { stock: { increment: item.quantity } },
+      await tx.branchInventory.upsert({
+        where: {
+          branchId_productId: { branchId, productId: item.productId },
+        },
+        create: { branchId, productId: item.productId, stock: item.quantity },
+        update: { stock: { increment: item.quantity } },
       });
     }
 
@@ -110,32 +120,58 @@ export async function receive(businessId: string, purchaseId: string) {
   });
 }
 
-export async function cancel(businessId: string, purchaseId: string) {
-  const purchase = await prisma.purchase.findFirst({
-    where: { id: purchaseId, businessId, deletedAt: null },
-  });
-  if (!purchase) throw new AppError(404, "NOT_FOUND", "Purchase not found");
-  if (purchase.status === "RECEIVED") {
-    throw new AppError(
-      400,
-      "ALREADY_RECEIVED",
-      "Cannot cancel a received purchase",
-    );
-  }
-  return prisma.purchase.update({
-    where: { id: purchaseId },
-    data: { status: "CANCELLED" },
+export async function cancel(
+  businessId: string,
+  branchId: string,
+  purchaseId: string,
+) {
+  return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+      SELECT id, status FROM "Purchase"
+      WHERE id::text = ${purchaseId}
+        AND "businessId"::text = ${businessId}
+        AND "branchId"::text = ${branchId}
+        AND "deletedAt" IS NULL
+      FOR UPDATE
+    `;
+
+    if (locked.length === 0) {
+      throw new AppError(404, "NOT_FOUND", "Purchase not found");
+    }
+
+    if (locked[0].status === "RECEIVED") {
+      throw new AppError(
+        400,
+        "ALREADY_RECEIVED",
+        "Cannot cancel a received purchase",
+      );
+    }
+
+    if (locked[0].status === "CANCELLED") {
+      return tx.purchase.findUniqueOrThrow({
+        where: { id: purchaseId },
+        include: { items: true, supplier: true },
+      });
+    }
+
+    return tx.purchase.update({
+      where: { id: purchaseId },
+      data: { status: "CANCELLED" },
+      include: { items: true, supplier: true },
+    });
   });
 }
 
 export async function list(
   businessId: string,
+  branchId: string,
   page: number,
   limit: number,
   status?: "PENDING" | "RECEIVED" | "CANCELLED",
 ) {
   const where = {
     businessId,
+    branchId,
     deletedAt: null,
     ...(status ? { status } : {}),
   };
@@ -154,9 +190,13 @@ export async function list(
   return { items, total, page, limit, pages: Math.ceil(total / limit) };
 }
 
-export async function getById(businessId: string, id: string) {
+export async function getById(
+  businessId: string,
+  branchId: string,
+  id: string,
+) {
   const p = await prisma.purchase.findFirst({
-    where: { id, businessId, deletedAt: null },
+    where: { id, businessId, branchId, deletedAt: null },
     include: { items: true, supplier: true },
   });
   if (!p) throw new AppError(404, "NOT_FOUND", "Purchase not found");

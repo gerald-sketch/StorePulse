@@ -21,7 +21,13 @@ export async function list(
   next: NextFunction,
 ): Promise<void> {
   try {
-    res.json({ items: await service.list(requireUser(req).businessId) });
+    const user = requireUser(req);
+    res.json({
+      items: await service.list(
+        user.businessId,
+        user.role === "OWNER" ? undefined : req.branchId,
+      ),
+    });
   } catch (error) {
     next(error);
   }

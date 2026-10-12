@@ -115,6 +115,7 @@ function startOfUTCDay(d: Date): Date {
 // ─── Data access ───
 async function fetchProductSales(
   businessId: string,
+  branchId: string,
   now: Date,
 ): Promise<ProductSalesRow[]> {
   const recentStart = new Date(now.getTime() - RECENT_WINDOW_DAYS * MS_PER_DAY);
@@ -125,7 +126,7 @@ async function fetchProductSales(
       p.id,
       p.name,
       p.sku,
-      p.stock,
+      COALESCE(i.stock, 0)::int AS stock,
       p.cost::text  AS cost,
       p.price::text AS price,
       COALESCE(
@@ -140,6 +141,8 @@ async function fetchProductSales(
         0
       )::int AS "priorUnits"
     FROM "Product" p
+    LEFT JOIN "BranchInventory" i
+      ON i."productId" = p.id AND i."branchId" = ${branchId}
     LEFT JOIN "SaleItem" si ON si."productId" = p.id
     LEFT JOIN "Sale" s
       ON s.id = si."saleId"
@@ -147,13 +150,14 @@ async function fetchProductSales(
     WHERE p."businessId"::text = ${businessId}
       AND p."deletedAt" IS NULL
       AND p.status = 'ACTIVE'
-    GROUP BY p.id, p.name, p.sku, p.stock, p.cost, p.price
+    GROUP BY p.id, p.name, p.sku, i.stock, p.cost, p.price
     ORDER BY p.name ASC
   `;
 }
 
 async function fetchDayOfWeekPattern(
   businessId: string,
+  branchId: string,
   now: Date,
 ): Promise<DowRow[]> {
   const since = new Date(now.getTime() - PATTERN_WINDOW_DAYS * MS_PER_DAY);
@@ -166,6 +170,7 @@ async function fetchDayOfWeekPattern(
     FROM "SaleItem" si
     JOIN "Sale" s ON s.id = si."saleId"
     WHERE s."businessId"::text = ${businessId}
+      AND s."branchId"::text = ${branchId}
       AND s."deletedAt" IS NULL
       AND s."paidAt" >= ${since}
     GROUP BY EXTRACT(DOW FROM s."paidAt")
@@ -318,12 +323,13 @@ function buildPatterns(rows: DowRow[]): ForecastingInsights["patterns"] {
 // ─── Public API ───
 export async function getInsights(
   businessId: string,
+  branchId: string,
 ): Promise<ForecastingInsights> {
   const now = new Date();
 
   const [productRows, dowRows] = await Promise.all([
-    fetchProductSales(businessId, now),
-    fetchDayOfWeekPattern(businessId, now),
+    fetchProductSales(businessId, branchId, now),
+    fetchDayOfWeekPattern(businessId, branchId, now),
   ]);
 
   const items = productRows.map((row) => buildForecastItem(row, now));

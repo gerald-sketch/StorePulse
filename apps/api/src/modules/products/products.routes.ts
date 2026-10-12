@@ -6,12 +6,13 @@ import {
   ProductListQuery,
 } from "@sb/shared";
 import { validate } from "../../middleware/validate";
-import { requireAuth, requireRole } from "../../middleware/auth";
+import { requireAuth, requireBranch, requireRole } from "../../middleware/auth";
 import * as productsController from "./products.controller";
 
 export const productsRouter = Router();
 
 productsRouter.use(requireAuth);
+productsRouter.use(requireBranch);
 
 productsRouter.get(
   "/",

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Hexagon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -18,14 +18,13 @@ export function LegalLayout({ title, lastUpdated, children }: Props) {
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-4xl mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-              <Hexagon
-                className="h-4 w-4 text-primary-foreground"
-                strokeWidth={2.5}
-              />
-            </div>
+            <img
+              src="/storepulse-mark.svg"
+              alt=""
+              className="h-8 w-8 shrink-0 rounded-lg"
+            />
             <span className="font-semibold text-[15px] tracking-tight">
-              SmallBiz
+              StorePulse
             </span>
           </Link>
 

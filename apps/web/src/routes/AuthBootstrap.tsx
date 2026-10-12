@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 import { api, setAccessToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth-store";
 
@@ -22,9 +23,14 @@ export function AuthBootstrap({ children }: { children: React.ReactNode }) {
         if (!cancelled && res.data?.accessToken) {
           setAccessToken(res.data.accessToken);
         }
-      } catch {
-        // Cookie expired or invalid — force re-login
-        if (!cancelled) clear();
+      } catch (error) {
+        if (
+          !cancelled &&
+          axios.isAxiosError(error) &&
+          error.response?.status === 401
+        ) {
+          clear();
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -35,6 +41,23 @@ export function AuthBootstrap({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      if (!useAuth.getState().user) return;
+      try {
+        const response = await api.post<{ accessToken?: string }>("/auth/refresh");
+        if (response.data.accessToken) setAccessToken(response.data.accessToken);
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          useAuth.getState().clear();
+        }
+      }
+    };
+
+    window.addEventListener("online", restoreSession);
+    return () => window.removeEventListener("online", restoreSession);
   }, []);
 
   if (!ready) {

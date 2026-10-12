@@ -40,6 +40,13 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
     const business = await tx.business.create({
       data: { name: input.businessName },
     });
+    const branch = await tx.branch.create({
+      data: {
+        businessId: business.id,
+        name: "Main Branch",
+        isDefault: true,
+      },
+    });
 
     const user = await tx.user.create({
       data: {
@@ -48,10 +55,11 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
         name: input.name,
         passwordHash,
         role: "OWNER",
+        branchId: branch.id,
       },
     });
 
-    return { business, user };
+    return { business, branch, user };
   });
 
   const accessToken = signAccessToken({

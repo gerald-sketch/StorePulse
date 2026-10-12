@@ -9,6 +9,11 @@ function u(req: Request) {
   return req.user;
 }
 
+function branch(req: Request) {
+  if (!req.branchId) throw new AppError(400, "BRANCH_REQUIRED", "Select a branch");
+  return req.branchId;
+}
+
 function parseStatus(value: unknown): PurchaseStatus | undefined {
   if (value === "PENDING" || value === "RECEIVED" || value === "CANCELLED") {
     return value;
@@ -26,7 +31,7 @@ export async function list(
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
     const status = parseStatus(req.query.status);
-    res.json(await service.list(user.businessId, page, limit, status));
+    res.json(await service.list(user.businessId, branch(req), page, limit, status));
   } catch (e) {
     next(e);
   }
@@ -42,7 +47,7 @@ export async function getById(
     if (typeof id !== "string" || !id) {
       throw new AppError(400, "INVALID_ID", "Missing ID");
     }
-    res.json(await service.getById(u(req).businessId, id));
+    res.json(await service.getById(u(req).businessId, branch(req), id));
   } catch (e) {
     next(e);
   }
@@ -57,7 +62,14 @@ export async function create(
     const user = u(req);
     res
       .status(201)
-      .json(await service.create(user.businessId, user.id, req.body));
+      .json(
+        await service.create(
+          user.businessId,
+          branch(req),
+          user.id,
+          req.body,
+        ),
+      );
   } catch (e) {
     next(e);
   }
@@ -73,7 +85,7 @@ export async function receive(
     if (typeof id !== "string" || !id) {
       throw new AppError(400, "INVALID_ID", "Missing ID");
     }
-    res.json(await service.receive(u(req).businessId, id));
+    res.json(await service.receive(u(req).businessId, branch(req), id));
   } catch (e) {
     next(e);
   }
@@ -89,7 +101,7 @@ export async function cancel(
     if (typeof id !== "string" || !id) {
       throw new AppError(400, "INVALID_ID", "Missing ID");
     }
-    res.json(await service.cancel(u(req).businessId, id));
+    res.json(await service.cancel(u(req).businessId, branch(req), id));
   } catch (e) {
     next(e);
   }

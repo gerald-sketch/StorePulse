@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import type { Branch } from "@/features/branches/use-branches";
 
 export type Role = "OWNER" | "MANAGER" | "STAFF";
 
@@ -9,6 +10,7 @@ export interface Employee {
   email: string;
   role: Role;
   createdAt: string;
+  branch: Pick<Branch, "id" | "name">;
 }
 
 export interface CreateEmployeeInput {
@@ -16,11 +18,13 @@ export interface CreateEmployeeInput {
   email: string;
   password: string;
   role: Role;
+  branchId: string;
 }
 
 export interface UpdateEmployeeInput {
   name?: string;
   role?: Role;
+  branchId?: string;
 }
 
 export interface ResetPasswordInput {

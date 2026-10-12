@@ -44,6 +44,20 @@ export interface StaffDetail {
   }[];
 }
 
+export interface StaffProductSales {
+  days: {
+    day: string;
+    items: {
+      productId: string;
+      name: string;
+      sku: string;
+      unitsSold: number;
+      revenue: number;
+      salesCount: number;
+    }[];
+  }[];
+}
+
 export function useStaffOverview() {
   return useQuery({
     queryKey: ["dashboard", "staff"],
@@ -63,5 +77,24 @@ export function useStaffDetail(userId: string | null) {
     queryFn: async () =>
       (await api.get<StaffDetail>(`/dashboard/staff/${userId}`)).data,
     enabled: !!userId,
+  });
+}
+
+export function useStaffProductSales(
+  userId: string | null,
+  from: string,
+  to: string,
+) {
+  return useQuery({
+    queryKey: ["dashboard", "staff", userId, "product-sales", { from, to }],
+    queryFn: async () => {
+      const params = new URLSearchParams({ from, to });
+      return (
+        await api.get<StaffProductSales>(
+          `/dashboard/staff/${userId}/product-sales?${params.toString()}`,
+        )
+      ).data;
+    },
+    enabled: !!userId && !!from && !!to && from <= to,
   });
 }

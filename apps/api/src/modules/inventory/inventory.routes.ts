@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { AdjustStockSchema, StockInSchema, StockOutSchema } from "@sb/shared";
 import { validate } from "../../middleware/validate";
-import { requireAuth, requireRole } from "../../middleware/auth";
+import { requireAuth, requireBranch, requireRole } from "../../middleware/auth";
 import { idempotent } from "../../middleware/idempotency";
 import * as inventoryController from "./inventory.controller";
 
 export const inventoryRouter = Router();
 
 inventoryRouter.use(requireAuth);
+inventoryRouter.use(requireBranch);
 
 inventoryRouter.get("/low-stock", inventoryController.lowStock);
 

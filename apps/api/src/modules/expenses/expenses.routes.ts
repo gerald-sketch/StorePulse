@@ -5,15 +5,16 @@ import {
   ProductIdParam,
 } from "@sb/shared";
 import { validate } from "../../middleware/validate";
-import { requireAuth, requireRole } from "../../middleware/auth";
+import { requireAuth, requireBranch, requireRole } from "../../middleware/auth";
 import { idempotent } from "../../middleware/idempotency";
 import * as c from "./expenses.controller";
 
 export const expensesRouter = Router();
 expensesRouter.use(requireAuth);
+expensesRouter.use(requireBranch);
 
-expensesRouter.get("/", c.list);
-expensesRouter.get("/summary", c.summary);
+expensesRouter.get("/", requireRole(["OWNER", "MANAGER"]), c.list);
+expensesRouter.get("/summary", requireRole(["OWNER", "MANAGER"]), c.summary);
 
 expensesRouter.post(
   "/",

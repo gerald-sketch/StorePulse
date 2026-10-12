@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +66,12 @@ interface Summary {
   }[];
   daily30d: { day: string; total: number; count: number }[];
 }
+
+const CHART_PERIODS = [
+  { days: 7, label: "7 days" },
+  { days: 15, label: "15 days" },
+  { days: 30, label: "1 month" },
+] as const;
 
 function peso(n: number) {
   return `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -155,6 +162,7 @@ function StatCard({
 export function DashboardPage() {
   const user = useAuth((s) => s.user);
   const navigate = useNavigate();
+  const [chartPeriod, setChartPeriod] = useState<7 | 15 | 30>(15);
 
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "summary"],
@@ -196,11 +204,13 @@ export function DashboardPage() {
     v: d.count > 0 ? d.total / d.count : 0,
   }));
 
-  const chartData = data.daily30d.slice(-14).map((d) => ({
+  const chartData = data.daily30d.slice(-chartPeriod).map((d) => ({
     day: d.day.slice(5),
     revenue: d.total,
     orders: d.count,
   }));
+  const chartPeriodLabel =
+    chartPeriod === 30 ? "1 month" : `${chartPeriod} days`;
 
   return (
     <div className="space-y-5">
@@ -256,30 +266,51 @@ export function DashboardPage() {
       {/* ─── Main Grid ─── */}
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <Card className="card-soft">
-          <CardHeader className="flex flex-row items-start justify-between pb-3">
+          <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="text-base font-semibold">
                 Sales Overview
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Revenue and order count over the last 14 days
+                Revenue and order count over the last {chartPeriodLabel}
               </p>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-primary" />
-                <span className="text-muted-foreground">Revenue</span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div
+                className="flex items-center gap-1"
+                role="group"
+                aria-label="Chart period"
+              >
+                {CHART_PERIODS.map(({ days, label }) => (
+                  <Button
+                    key={days}
+                    type="button"
+                    variant={chartPeriod === days ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 rounded-lg px-2 text-xs"
+                    aria-pressed={chartPeriod === days}
+                    onClick={() => setChartPeriod(days)}
+                  >
+                    {label}
+                  </Button>
+                ))}
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-primary/25" />
-                <span className="text-muted-foreground">Orders</span>
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-primary" />
+                  <span className="text-muted-foreground">Revenue</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-primary/25" />
+                  <span className="text-muted-foreground">Orders</span>
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent className="pt-2">
             {chartData.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-16">
-                No sales in the last 14 days.
+                No sales in the last {chartPeriodLabel}.
               </p>
             ) : (
               <ResponsiveContainer width="100%" height={320}>

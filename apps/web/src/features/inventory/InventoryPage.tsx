@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useLowStock, useProductsForInventory } from "./use-inventory";
 import { StockDialog } from "./StockDialog";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useCategories } from "@/features/categories/use-categories";
 import { useAuth } from "@/lib/auth-store";
 import type { Product } from "@/features/products/use-products";
@@ -351,24 +352,19 @@ export function InventoryPage() {
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* ─── Header ─── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-            Inventory
-          </h2>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Track stock levels, adjust quantities, monitor value
-          </p>
-        </div>
+      <PageHeader
+        title="Inventory"
+        description="Track stock levels, adjust quantities, monitor value"
+      >
         <Button
           variant="outline"
-          className="rounded-xl w-full sm:w-auto"
+          className="w-full rounded-xl sm:w-auto"
           onClick={() => navigate("/purchases")}
         >
           <ShoppingCart className="h-4 w-4 mr-2" />
           Purchase order
         </Button>
-      </div>
+      </PageHeader>
 
       {/* ─── Summary cards ─── */}
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">

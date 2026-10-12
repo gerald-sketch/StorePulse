@@ -13,11 +13,13 @@ export const CreateEmployeeSchema = z.object({
     .regex(/[a-z]/, "Password must contain a lowercase letter")
     .regex(/[0-9]/, "Password must contain a number"),
   role: RoleEnum.default("STAFF"),
+  branchId: z.string().uuid(),
 });
 
 export const UpdateEmployeeSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   role: RoleEnum.optional(),
+  branchId: z.string().uuid().optional(),
 });
 
 export type CreateEmployeeInput = z.infer<typeof CreateEmployeeSchema>;

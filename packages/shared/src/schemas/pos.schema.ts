@@ -10,6 +10,14 @@ export const SaleItemInputSchema = z.object({
 export const CheckoutSchema = z
   .object({
     items: z.array(SaleItemInputSchema).min(1).max(100),
+    expectedPrices: z
+      .array(
+        z.object({
+          productId: z.string().uuid(),
+          unitPrice: z.number().nonnegative(),
+        }),
+      )
+      .optional(),
     customerId: z.string().uuid().optional(),
     discount: z.number().nonnegative().default(0),
     paymentMethod: PaymentMethodEnum,

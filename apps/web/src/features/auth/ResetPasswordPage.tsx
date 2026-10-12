@@ -5,6 +5,7 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Card,
   CardContent,
@@ -19,13 +20,13 @@ function Rule({ ok, children }: { ok: boolean; children: React.ReactNode }) {
     <div
       className={cn(
         "flex items-center gap-1.5 text-xs transition-colors",
-        ok ? "text-primary" : "text-muted-foreground",
+        ok ? "text-teal-700" : "text-muted-foreground",
       )}
     >
       <span
         className={cn(
           "h-1.5 w-1.5 rounded-full",
-          ok ? "bg-primary" : "bg-muted-foreground/30",
+          ok ? "bg-teal-700" : "bg-muted-foreground/30",
         )}
       />
       {children}
@@ -79,12 +80,12 @@ export function ResetPasswordPage() {
   // ─── Success ───
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md border-border/60 shadow-sm">
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-teal-50/70 via-white to-white p-4">
+        <Card className="relative w-full max-w-md border-teal-100/80 shadow-[0_24px_80px_-36px_rgba(15,118,110,0.18)]">
           <CardHeader>
             <div className="flex justify-center mb-3">
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-primary" />
+              <div className="h-12 w-12 rounded-2xl bg-teal-50 flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5 text-teal-700" />
               </div>
             </div>
             <CardTitle className="text-center text-xl">
@@ -97,7 +98,7 @@ export function ResetPasswordPage() {
           <CardContent>
             <Link
               to="/login"
-              className="flex items-center justify-center w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="flex items-center justify-center w-full h-11 rounded-xl bg-teal-700 text-white text-sm font-medium hover:bg-teal-800 transition-colors"
             >
               Sign in now
             </Link>
@@ -110,8 +111,8 @@ export function ResetPasswordPage() {
   // ─── Missing email ───
   if (!email) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md border-border/60 shadow-sm">
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-teal-50/70 via-white to-white p-4">
+        <Card className="relative w-full max-w-md border-teal-100/80 shadow-[0_24px_80px_-36px_rgba(15,118,110,0.18)]">
           <CardHeader>
             <div className="flex justify-center mb-3">
               <div className="h-12 w-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
@@ -126,7 +127,7 @@ export function ResetPasswordPage() {
           <CardContent>
             <Link
               to="/forgot-password"
-              className="flex items-center justify-center w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="flex items-center justify-center w-full h-11 rounded-xl bg-teal-700 text-white text-sm font-medium hover:bg-teal-800 transition-colors"
             >
               Start reset
             </Link>
@@ -138,13 +139,13 @@ export function ResetPasswordPage() {
 
   // ─── Reset form ───
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,hsl(142_65%_38%_/_0.08),transparent_60%)]" />
-      <Card className="w-full max-w-md border-border/60 shadow-sm">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-teal-50/70 via-white to-white p-4">
+      <div className="pointer-events-none absolute -top-40 h-96 w-96 rounded-full bg-emerald-100/50 blur-3xl" />
+      <Card className="relative w-full max-w-md border-teal-100/80 shadow-[0_24px_80px_-36px_rgba(15,118,110,0.18)]">
         <CardHeader>
           <div className="flex justify-center mb-3">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <KeyRound className="h-5 w-5 text-primary" />
+            <div className="h-12 w-12 rounded-2xl bg-teal-50 flex items-center justify-center">
+              <KeyRound className="h-5 w-5 text-teal-700" />
             </div>
           </div>
           <CardTitle className="text-center text-xl">
@@ -187,9 +188,8 @@ export function ResetPasswordPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password">New password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
@@ -206,9 +206,8 @@ export function ResetPasswordPage() {
 
             <div className="space-y-2">
               <Label htmlFor="confirm">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 autoComplete="new-password"

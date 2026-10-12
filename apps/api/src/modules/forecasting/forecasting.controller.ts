@@ -11,7 +11,13 @@ export async function getInsights(
     if (!req.user) {
       throw new AppError(401, "UNAUTHORIZED", "Not authenticated");
     }
-    const insights = await service.getInsights(req.user.businessId);
+    if (!req.branchId) {
+      throw new AppError(400, "BRANCH_REQUIRED", "Select a branch");
+    }
+    const insights = await service.getInsights(
+      req.user.businessId,
+      req.branchId,
+    );
     res.json(insights);
   } catch (e) {
     next(e);

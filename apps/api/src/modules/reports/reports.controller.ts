@@ -7,6 +7,11 @@ function u(req: Request) {
   return req.user;
 }
 
+function branch(req: Request) {
+  if (!req.branchId) throw new AppError(400, "BRANCH_REQUIRED", "Select a branch");
+  return req.branchId;
+}
+
 function parseDates(req: Request) {
   const from =
     typeof req.query.from === "string" ? new Date(req.query.from) : undefined;
@@ -24,7 +29,15 @@ export async function salesSummary(
     const user = u(req);
     const { from, to } = parseDates(req);
     const groupBy = (req.query.groupBy as "day" | "week" | "month") ?? "day";
-    res.json(await service.salesSummary(user.businessId, from, to, groupBy));
+    res.json(
+      await service.salesSummary(
+        user.businessId,
+        branch(req),
+        from,
+        to,
+        groupBy,
+      ),
+    );
   } catch (e) {
     next(e);
   }
@@ -38,7 +51,7 @@ export async function profitLoss(
   try {
     const user = u(req);
     const { from, to } = parseDates(req);
-    res.json(await service.profitLoss(user.businessId, from, to));
+    res.json(await service.profitLoss(user.businessId, branch(req), from, to));
   } catch (e) {
     next(e);
   }
@@ -51,7 +64,7 @@ export async function inventoryValuation(
 ): Promise<void> {
   try {
     const user = u(req);
-    res.json(await service.inventoryValuation(user.businessId));
+    res.json(await service.inventoryValuation(user.businessId, branch(req)));
   } catch (e) {
     next(e);
   }
@@ -66,7 +79,15 @@ export async function topProducts(
     const user = u(req);
     const { from, to } = parseDates(req);
     const limit = Number(req.query.limit) || 10;
-    res.json(await service.topProducts(user.businessId, from, to, limit));
+    res.json(
+      await service.topProducts(
+        user.businessId,
+        branch(req),
+        from,
+        to,
+        limit,
+      ),
+    );
   } catch (e) {
     next(e);
   }
@@ -80,7 +101,12 @@ export async function exportSales(
   try {
     const user = u(req);
     const { from, to } = parseDates(req);
-    const csv = await service.exportSalesCsv(user.businessId, from, to);
+    const csv = await service.exportSalesCsv(
+      user.businessId,
+      branch(req),
+      from,
+      to,
+    );
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader(
       "Content-Disposition",

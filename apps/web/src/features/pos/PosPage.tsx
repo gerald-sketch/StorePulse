@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -21,6 +22,9 @@ import {
 } from "lucide-react";
 import { api, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-store";
+import { useBranchStore } from "@/lib/branch-store";
+import { queueSale } from "@/lib/offline-store";
+import { requestBackgroundSync } from "@/components/pwa/PwaRuntime";
 import { useCategories } from "@/features/categories/use-categories";
 import {
   CartLine,
@@ -32,6 +36,8 @@ import {
 } from "./use-pos";
 import { ReceiptDialog } from "./ReceiptDialog";
 import { PaymentQrDialog } from "./PaymentQrDialog";
+import { OfflineSalesQueue } from "./OfflineSalesQueue";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +78,7 @@ interface BusinessProfile {
 
 export function PosPage() {
   const user = useAuth((s) => s.user);
+  const branchId = useBranchStore((s) => s.selectedBranchId);
 
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -227,10 +234,14 @@ export function PosPage() {
     }
 
     try {
-      const sale = await checkout.mutateAsync({
+      const input = {
         items: cart.map((l) => ({
           productId: l.productId,
           quantity: l.quantity,
+        })),
+        expectedPrices: cart.map((line) => ({
+          productId: line.productId,
+          unitPrice: line.unitPrice,
         })),
         customerId: customerId || undefined,
         discount,
@@ -238,14 +249,82 @@ export function PosPage() {
         amountTendered:
           paymentMethod === "CASH" ? Number(amountTendered) : undefined,
         paymentReference: referenceRequired ? trimmedReference : undefined,
-      });
+      };
+      const idempotencyKey = crypto.randomUUID();
+
+      if (!navigator.onLine) {
+        await saveOfflineSale(input, idempotencyKey);
+        return;
+      }
+
+      const sale = await checkout.mutateAsync({ input, idempotencyKey });
       setReceipt(sale);
       clearCart();
       setCartOpen(false);
       toast.success(`Sale complete — ${peso(Number(sale.total))}`);
     } catch (e) {
+      if (
+        axios.isAxiosError(e) &&
+        !e.response &&
+        user &&
+        branchId
+      ) {
+        try {
+          await saveOfflineSale(
+            {
+              items: cart.map((line) => ({
+                productId: line.productId,
+                quantity: line.quantity,
+              })),
+              expectedPrices: cart.map((line) => ({
+                productId: line.productId,
+                unitPrice: line.unitPrice,
+              })),
+              customerId: customerId || undefined,
+              discount,
+              paymentMethod,
+              amountTendered:
+                paymentMethod === "CASH" ? Number(amountTendered) : undefined,
+              paymentReference: referenceRequired ? trimmedReference : undefined,
+            },
+            (e.config?.headers?.["Idempotency-Key"] as string | undefined) ??
+              crypto.randomUUID(),
+          );
+        } catch (storageError) {
+          toast.error(apiErrorMessage(storageError));
+        }
+        return;
+      }
       toast.error(apiErrorMessage(e));
     }
+  }
+
+  async function saveOfflineSale(
+    input: Parameters<typeof checkout.mutateAsync>[0]["input"],
+    idempotencyKey: string,
+  ) {
+    if (!user || !branchId) {
+      toast.error("Select a branch before saving an offline sale");
+      return;
+    }
+    await queueSale({
+      id: idempotencyKey,
+      userId: user.id,
+      businessId: user.businessId,
+      branchId,
+      payload: input,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    });
+    window.dispatchEvent(new Event("smallbiz-offline-queue-changed"));
+    try {
+      await requestBackgroundSync();
+    } catch (error) {
+      console.warn("Background sync is unavailable; sales will sync when the app is online", error);
+    }
+    clearCart();
+    setCartOpen(false);
+    toast.success("Sale saved on this device and will sync when online");
   }
 
   const quickBills = [
@@ -624,25 +703,18 @@ export function PosPage() {
 
   return (
     <>
-      <div className="lg:h-[calc(100vh-7rem)] grid gap-4 lg:grid-cols-[1fr_420px]">
+      <OfflineSalesQueue />
+      <div className="space-y-4">
+        <PageHeader
+          title="Point of Sale"
+          description="Tap a product to add it to the order"
+        >
+          <Badge variant="outline" className="border-border/60">
+            {products.length} products
+          </Badge>
+        </PageHeader>
+        <div className="lg:h-[calc(100vh-12rem)] grid gap-4 lg:grid-cols-[1fr_420px]">
         <div className="flex flex-col min-w-0 lg:min-h-0">
-          <div className="flex items-center justify-between mb-4 shrink-0">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-                Point of Sale
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Tap a product to add it to the order
-              </p>
-            </div>
-            <Badge
-              variant="outline"
-              className="hidden sm:inline-flex border-border/60"
-            >
-              {products.length} products
-            </Badge>
-          </div>
-
           <div className="relative mb-3 shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
@@ -934,21 +1006,22 @@ export function PosPage() {
         )}
       </div>
 
-      {paymentMethod !== "CASH" && (
-        <PaymentQrDialog
-          open={qrDialogOpen}
-          onOpenChange={setQrDialogOpen}
-          method={paymentMethod as "GCASH" | "MAYA"}
-          qrUrl={currentQrUrl}
-          amount={total}
-        />
-      )}
+        {paymentMethod !== "CASH" && (
+          <PaymentQrDialog
+            open={qrDialogOpen}
+            onOpenChange={setQrDialogOpen}
+            method={paymentMethod as "GCASH" | "MAYA"}
+            qrUrl={currentQrUrl}
+            amount={total}
+          />
+        )}
 
-      <ReceiptDialog
-        sale={receipt}
-        businessName={user?.businessName ?? "Receipt"}
-        onClose={() => setReceipt(null)}
-      />
+        <ReceiptDialog
+          sale={receipt}
+          businessName={user?.businessName ?? "Receipt"}
+          onClose={() => setReceipt(null)}
+        />
+      </div>
     </>
   );
 }

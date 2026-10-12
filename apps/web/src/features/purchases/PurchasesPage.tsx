@@ -8,6 +8,7 @@ import {
   PurchaseStatus,
 } from "./use-purchases";
 import { PurchaseDialog } from "./PurchaseDialog";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { apiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,17 +74,17 @@ export function PurchasesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Purchases</h2>
-          <p className="text-sm text-muted-foreground">
-            Purchase orders and stock-in
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
+      <PageHeader
+        title="Purchases"
+        description="Purchase orders and stock-in"
+      >
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="w-full rounded-xl sm:w-auto"
+        >
           <Plus className="h-4 w-4 mr-2" /> New PO
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="flex gap-2">
         {(["", "PENDING", "RECEIVED", "CANCELLED"] as const).map((s) => (

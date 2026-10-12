@@ -11,19 +11,35 @@ import { AdjustStockInput, StockInInput, StockOutInput } from "@sb/shared";
  */
 async function applyDelta(
   businessId: string,
+  branchId: string,
   productId: string,
   delta: number,
   _reason: string,
 ) {
   return prisma.$transaction(async (tx) => {
+    const product = await tx.product.findFirst({
+      where: { id: productId, businessId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!product) {
+      throw new AppError(404, "NOT_FOUND", "Product not found");
+    }
+    await tx.branchInventory.upsert({
+      where: { branchId_productId: { branchId, productId } },
+      create: { branchId, productId, stock: 0 },
+      update: {},
+    });
     const rows = await tx.$queryRaw<
       Array<{ id: string; stock: number; name: string }>
     >`
-      SELECT id, stock, name FROM "Product"
-      WHERE id::text = ${productId}
-        AND "businessId"::text = ${businessId}
-        AND "deletedAt" IS NULL
-      FOR UPDATE
+      SELECT i.id, i.stock, p.name
+      FROM "BranchInventory" i
+      JOIN "Product" p ON p.id = i."productId"
+      WHERE i."branchId" = ${branchId}
+        AND i."productId"::text = ${productId}
+        AND p."businessId"::text = ${businessId}
+        AND p."deletedAt" IS NULL
+      FOR UPDATE OF i
     `;
 
     if (rows.length === 0) {
@@ -41,31 +57,75 @@ async function applyDelta(
       );
     }
 
-    const updated = await tx.product.update({
-      where: { id: productId },
+    await tx.branchInventory.update({
+      where: { branchId_productId: { branchId, productId } },
       data: { stock: next },
     });
+    const updated = await tx.product.findUniqueOrThrow({
+      where: { id: productId },
+      include: {
+        category: { select: { id: true, name: true } },
+      },
+    });
 
-    return { product: updated, previous: current, delta };
+    return {
+      product: { ...updated, stock: next },
+      previous: current,
+      delta,
+    };
   });
 }
 
-export async function adjust(businessId: string, input: AdjustStockInput) {
-  return applyDelta(businessId, input.productId, input.delta, input.reason);
+export async function adjust(
+  businessId: string,
+  branchId: string,
+  input: AdjustStockInput,
+) {
+  return applyDelta(businessId, branchId, input.productId, input.delta, input.reason);
 }
 
-export async function stockIn(businessId: string, input: StockInInput) {
-  return applyDelta(businessId, input.productId, input.quantity, input.reason);
+export async function stockIn(
+  businessId: string,
+  branchId: string,
+  input: StockInInput,
+) {
+  return applyDelta(businessId, branchId, input.productId, input.quantity, input.reason);
 }
 
-export async function stockOut(businessId: string, input: StockOutInput) {
-  return applyDelta(businessId, input.productId, -input.quantity, input.reason);
+export async function stockOut(
+  businessId: string,
+  branchId: string,
+  input: StockOutInput,
+) {
+  return applyDelta(
+    businessId,
+    branchId,
+    input.productId,
+    -input.quantity,
+    input.reason,
+  );
 }
 
-export async function lowStock(businessId: string, threshold = 5) {
-  return prisma.product.findMany({
-    where: { businessId, deletedAt: null, stock: { lte: threshold } },
-    orderBy: { stock: "asc" },
+export async function lowStock(
+  businessId: string,
+  branchId: string,
+  threshold = 5,
+) {
+  const products = await prisma.product.findMany({
+    where: {
+      businessId,
+      deletedAt: null,
+      inventory: { some: { branchId, stock: { lte: threshold } } },
+    },
+    include: {
+      inventory: { where: { branchId }, select: { stock: true } },
+      category: { select: { id: true, name: true } },
+    },
+    orderBy: { name: "asc" },
     take: 50,
   });
+  return products.map(({ inventory, ...product }) => ({
+    ...product,
+    stock: inventory[0]?.stock ?? 0,
+  }));
 }

@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "./errorHandler";
 
 const HEADER = "idempotency-key";
+const IN_PROGRESS = "IN_PROGRESS";
 
 export function idempotent(endpoint: string) {
   return async (
@@ -29,18 +30,56 @@ export function idempotent(endpoint: string) {
     if (!user)
       return next(new AppError(401, "UNAUTHORIZED", "Not authenticated"));
 
-    // Look up existing key
+    const uniqueKey = { businessId: user.businessId, key };
+
     const existing = await prisma.idempotencyKey.findUnique({
-      where: { businessId_key: { businessId: user.businessId, key } },
+      where: { businessId_key: uniqueKey },
     });
 
     if (existing) {
-      // Replay the stored response
-      res.status(existing.statusCode).json(existing.response);
-      return;
+      const storedStatus = (existing.response as { status?: string } | null)?.status;
+      if (storedStatus === IN_PROGRESS) {
+        return res.status(202).json({
+          error: "IDEMPOTENCY_IN_PROGRESS",
+          message: "This request is already being processed.",
+        });
+      }
+
+      return res.status(existing.statusCode).json(existing.response);
     }
 
-    // Capture the response on the way out
+    try {
+      await prisma.idempotencyKey.create({
+        data: {
+          key,
+          userId: user.id,
+          businessId: user.businessId,
+          endpoint,
+          statusCode: 202,
+          response: { status: IN_PROGRESS },
+        },
+      });
+    } catch (error: unknown) {
+      const code = (error as { code?: string }).code;
+      if (code === "P2002") {
+        const replay = await prisma.idempotencyKey.findUnique({
+          where: { businessId_key: uniqueKey },
+        });
+        if (replay) {
+          const storedStatus = (replay.response as { status?: string } | null)?.status;
+          if (storedStatus === IN_PROGRESS) {
+            return res.status(202).json({
+              error: "IDEMPOTENCY_IN_PROGRESS",
+              message: "This request is already being processed.",
+            });
+          }
+          return res.status(replay.statusCode).json(replay.response);
+        }
+      }
+      console.error("[Idempotency reserve error]", error);
+      return next(error as Error);
+    }
+
     const originalJson = res.json.bind(res);
     let capturedBody: unknown = null;
 
@@ -50,29 +89,28 @@ export function idempotent(endpoint: string) {
     };
 
     res.on("finish", async () => {
-      // Only store successful, non-5xx responses
-      if (
-        res.statusCode >= 200 &&
-        res.statusCode < 300 &&
-        capturedBody !== null
-      ) {
+      if (res.statusCode >= 200 && res.statusCode < 300 && capturedBody !== null) {
         try {
-          await prisma.idempotencyKey.create({
+          await prisma.idempotencyKey.update({
+            where: { businessId_key: uniqueKey },
             data: {
-              key,
-              userId: user.id,
-              businessId: user.businessId,
-              endpoint,
               statusCode: res.statusCode,
               response: capturedBody as object,
             },
           });
-        } catch (e: unknown) {
-          // Duplicate insert = race condition; another request stored it first.
-          // That's fine — this request already returned successfully.
-          const code = (e as { code?: string }).code;
-          if (code !== "P2002") console.error("[Idempotency store error]", e);
+        } catch (error: unknown) {
+          console.error("[Idempotency store error]", error);
         }
+        return;
+      }
+
+      try {
+        await prisma.idempotencyKey.delete({
+          where: { businessId_key: uniqueKey },
+        });
+      } catch (error: unknown) {
+        const code = (error as { code?: string }).code;
+        if (code !== "P2025") console.error("[Idempotency cleanup error]", error);
       }
     });
 

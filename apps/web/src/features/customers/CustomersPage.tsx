@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useCustomers } from "./use-customers";
 import { CustomerDialog } from "./CustomerDialog";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,17 +23,17 @@ export function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Customers</h2>
-          <p className="text-sm text-muted-foreground">
-            Customer profiles and loyalty
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
+      <PageHeader
+        title="Customers"
+        description="Customer profiles and loyalty"
+      >
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="w-full rounded-xl sm:w-auto"
+        >
           <Plus className="h-4 w-4 mr-2" /> New customer
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

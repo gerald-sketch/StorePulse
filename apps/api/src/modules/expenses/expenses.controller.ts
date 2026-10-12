@@ -7,6 +7,11 @@ function u(req: Request) {
   return req.user;
 }
 
+function branch(req: Request) {
+  if (!req.branchId) throw new AppError(400, "BRANCH_REQUIRED", "Select a branch");
+  return req.branchId;
+}
+
 export async function list(
   req: Request,
   res: Response,
@@ -18,7 +23,7 @@ export async function list(
     const limit = Number(req.query.limit) || 20;
     const category =
       typeof req.query.category === "string" ? req.query.category : undefined;
-    res.json(await service.list(user.businessId, page, limit, category));
+    res.json(await service.list(user.businessId, branch(req), page, limit, category));
   } catch (e) {
     next(e);
   }
@@ -33,7 +38,7 @@ export async function create(
     const user = u(req);
     res
       .status(201)
-      .json(await service.create(user.businessId, user.id, req.body));
+      .json(await service.create(user.businessId, branch(req), user.id, req.body));
   } catch (e) {
     next(e);
   }
@@ -49,7 +54,7 @@ export async function update(
     if (typeof id !== "string" || !id) {
       throw new AppError(400, "INVALID_ID", "Missing ID");
     }
-    res.json(await service.update(u(req).businessId, id, req.body));
+    res.json(await service.update(u(req).businessId, branch(req), id, req.body));
   } catch (e) {
     next(e);
   }
@@ -65,7 +70,7 @@ export async function remove(
     if (typeof id !== "string" || !id) {
       throw new AppError(400, "INVALID_ID", "Missing ID");
     }
-    await service.softDelete(u(req).businessId, id);
+    await service.softDelete(u(req).businessId, branch(req), id);
     res.json({ ok: true });
   } catch (e) {
     next(e);
@@ -85,7 +90,9 @@ export async function summary(
     if (month < 1 || month > 12) {
       throw new AppError(400, "INVALID_MONTH", "Month must be 1-12");
     }
-    res.json(await service.monthlySummary(user.businessId, year, month));
+    res.json(
+      await service.monthlySummary(user.businessId, branch(req), year, month),
+    );
   } catch (e) {
     next(e);
   }

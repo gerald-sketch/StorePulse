@@ -35,16 +35,16 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,hsl(142_65%_38%_/_0.08),transparent_60%)]" />
-      <Card className="w-full max-w-md border-border/60 shadow-sm">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-teal-50/70 via-white to-white p-4">
+      <div className="pointer-events-none absolute -top-40 h-96 w-96 rounded-full bg-emerald-100/50 blur-3xl" />
+      <Card className="relative w-full max-w-md border-teal-100/80 shadow-[0_24px_80px_-36px_rgba(15,118,110,0.18)]">
         <CardHeader>
           <div className="flex justify-center mb-3">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-2xl bg-teal-50 flex items-center justify-center">
               {sent ? (
-                <CheckCircle2 className="h-5 w-5 text-primary" />
+                <CheckCircle2 className="h-5 w-5 text-teal-700" />
               ) : (
-                <Mail className="h-5 w-5 text-primary" />
+                <Mail className="h-5 w-5 text-teal-700" />
               )}
             </div>
           </div>
@@ -60,11 +60,11 @@ export function ForgotPasswordPage() {
         <CardContent>
           {sent ? (
             <>
-              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground mb-4">
+              <div className="rounded-xl border border-teal-200/70 bg-teal-50/70 px-4 py-3 text-xs text-muted-foreground mb-4">
                 Didn't get the email? Check your spam folder, or{" "}
                 <button
                   type="button"
-                  className="text-primary underline"
+                  className="text-teal-700 underline hover:text-teal-800"
                   onClick={() => setSent(false)}
                 >
                   try again
@@ -72,7 +72,7 @@ export function ForgotPasswordPage() {
                 .
               </div>
               <Button
-                className="w-full h-11 rounded-xl"
+                className="w-full h-11 rounded-xl bg-teal-700 text-white hover:bg-teal-800"
                 onClick={() =>
                   navigate(`/reset-password?email=${encodeURIComponent(email)}`)
                 }
@@ -99,13 +99,13 @@ export function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   required
-                  className="h-11 rounded-xl"
+                  className="h-11 rounded-xl border-slate-200 focus-visible:border-teal-600 focus-visible:ring-teal-600/20"
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
                 type="submit"
-                className="w-full h-11 rounded-xl"
+                className="w-full h-11 rounded-xl bg-teal-700 text-white hover:bg-teal-800"
                 disabled={loading}
               >
                 {loading ? "Sending..." : "Send reset code"}

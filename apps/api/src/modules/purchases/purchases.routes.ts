@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { CreatePurchaseSchema, ProductIdParam } from "@sb/shared";
 import { validate } from "../../middleware/validate";
-import { requireAuth, requireRole } from "../../middleware/auth";
+import { requireAuth, requireBranch, requireRole } from "../../middleware/auth";
 import { idempotent } from "../../middleware/idempotency";
 import * as c from "./purchases.controller";
 
 export const purchasesRouter = Router();
 purchasesRouter.use(requireAuth);
+purchasesRouter.use(requireBranch);
 
 purchasesRouter.get("/", c.list);
 purchasesRouter.get("/:id", validate({ params: ProductIdParam }), c.getById);

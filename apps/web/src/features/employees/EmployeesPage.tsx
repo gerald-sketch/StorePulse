@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, KeyRound } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound, MapPin } from "lucide-react";
 import { useEmployees, useDeleteEmployee, Employee } from "./use-employees";
 import { EmployeeDialog } from "./EmployeeDialog";
+import { BranchManagementDialog } from "./BranchManagementDialog";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/lib/auth-store";
 import { apiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,7 @@ export function EmployeesPage() {
   const [editing, setEditing] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState<Employee | null>(null);
   const [resetting, setResetting] = useState<Employee | null>(null);
+  const [branchesOpen, setBranchesOpen] = useState(false);
 
   const { data, isLoading } = useEmployees();
   const del = useDeleteEmployee();
@@ -61,19 +64,22 @@ export function EmployeesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Employees</h2>
-          <p className="text-sm text-muted-foreground">
-            Staff accounts and permissions
-          </p>
-        </div>
+      <PageHeader title="Employees" description="Staff accounts and permissions">
         {canManage && (
-          <Button onClick={handleCreateClick} className="rounded-xl">
-            <Plus className="h-4 w-4 mr-2" /> New employee
-          </Button>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Button
+              variant="outline"
+              onClick={() => setBranchesOpen(true)}
+              className="rounded-xl"
+            >
+              <MapPin className="mr-2 h-4 w-4" /> Branches
+            </Button>
+            <Button onClick={handleCreateClick} className="rounded-xl">
+              <Plus className="mr-2 h-4 w-4" /> New employee
+            </Button>
+          </div>
         )}
-      </div>
+      </PageHeader>
 
       {isLoading ? (
         <Skeleton className="h-96" />
@@ -85,6 +91,7 @@ export function EmployeesPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead>Joined</TableHead>
                 {canManage && (
                   <TableHead className="text-right">Actions</TableHead>
@@ -95,7 +102,7 @@ export function EmployeesPage() {
               {data?.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={canManage ? 6 : 5}
                     className="text-center text-muted-foreground py-8"
                   >
                     No employees yet.
@@ -121,6 +128,9 @@ export function EmployeesPage() {
                     >
                       {ROLE_LABEL[e.role]}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{e.branch.name}</Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(e.createdAt).toLocaleDateString()}
@@ -165,11 +175,20 @@ export function EmployeesPage() {
         </div>
       )}
 
-      <EmployeeDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        employee={editing}
-      />
+      {dialogOpen && (
+        <EmployeeDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          employee={editing}
+        />
+      )}
+
+      {canManage && (
+        <BranchManagementDialog
+          open={branchesOpen}
+          onOpenChange={setBranchesOpen}
+        />
+      )}
 
       <ResetPasswordDialog
         open={!!resetting}

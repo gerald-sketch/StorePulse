@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
+import { useBranchStore } from "@/lib/branch-store";
+import { Branch, useBranches } from "@/features/branches/use-branches";
 import {
   Employee,
   CreateEmployeeInput,
@@ -11,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Dialog,
   DialogContent,
@@ -33,29 +36,23 @@ interface Props {
   employee?: Employee | null;
 }
 
+const EMPTY_BRANCHES: Branch[] = [];
+
 export function EmployeeDialog({ open, onOpenChange, employee }: Props) {
   const isEdit = !!employee;
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const selectedBranchId = useBranchStore((state) => state.selectedBranchId);
+  const [name, setName] = useState(employee?.name ?? "");
+  const [email, setEmail] = useState(employee?.email ?? "");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>("STAFF");
+  const [role, setRole] = useState<Role>(employee?.role ?? "STAFF");
+  const [branchId, setBranchId] = useState(
+    employee?.branch.id ?? selectedBranchId ?? "",
+  );
   const create = useCreateEmployee();
   const update = useUpdateEmployee();
-
-  useEffect(() => {
-    if (!open) return;
-    if (employee) {
-      setName(employee.name);
-      setEmail(employee.email);
-      setPassword("");
-      setRole(employee.role);
-    } else {
-      setName("");
-      setEmail("");
-      setPassword("");
-      setRole("STAFF");
-    }
-  }, [open, employee]);
+  const { data: loadedBranches, isLoading: branchesLoading } = useBranches();
+  const branches = loadedBranches ?? EMPTY_BRANCHES;
+  const effectiveBranchId = branchId || branches[0]?.id || "";
 
   const pending = create.isPending || update.isPending;
 
@@ -63,10 +60,16 @@ export function EmployeeDialog({ open, onOpenChange, employee }: Props) {
     e.preventDefault();
     try {
       if (isEdit && employee) {
-        await update.mutateAsync({ id: employee.id, name, role });
+        await update.mutateAsync({ id: employee.id, name, role, branchId });
         toast.success("Employee updated");
       } else {
-        const input: CreateEmployeeInput = { name, email, password, role };
+        const input: CreateEmployeeInput = {
+          name,
+          email,
+          password,
+          role,
+          branchId: effectiveBranchId,
+        };
         await create.mutateAsync(input);
         toast.success("Employee added");
       }
@@ -111,9 +114,8 @@ export function EmployeeDialog({ open, onOpenChange, employee }: Props) {
           {!isEdit && (
             <div className="space-y-2">
               <Label htmlFor="epassword">Password</Label>
-              <Input
+              <PasswordInput
                 id="epassword"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -136,6 +138,34 @@ export function EmployeeDialog({ open, onOpenChange, employee }: Props) {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label>Branch</Label>
+            <Select
+              value={effectiveBranchId}
+              onValueChange={setBranchId}
+              disabled={branchesLoading || branches.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    branchesLoading ? "Loading branches..." : "Select branch"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!branchesLoading && branches.length === 0 && (
+              <p className="text-xs text-destructive">
+                Create a branch before adding employees.
+              </p>
+            )}
+          </div>
           <DialogFooter>
             <Button
               type="button"
@@ -145,7 +175,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: Props) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || !branchId}>
               {pending ? "Saving..." : isEdit ? "Save changes" : "Add employee"}
             </Button>
           </DialogFooter>

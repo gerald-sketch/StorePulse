@@ -22,7 +22,7 @@ function startOfBusinessMonth(d: Date): Date {
 }
 
 // ─── Overall business summary ──────────────────────────
-export async function summary(businessId: string) {
+export async function summary(businessId: string, branchId: string) {
   const now = new Date();
   const todayStart = startOfBusinessDay(now);
   const tomorrowStart = new Date(todayStart.getTime() + MS_PER_DAY);
@@ -30,13 +30,13 @@ export async function summary(businessId: string) {
   const thirtyDaysAgo = new Date(todayStart.getTime() - 29 * MS_PER_DAY);
 
   const mtdSales = await prisma.sale.aggregate({
-    where: { businessId, deletedAt: null, paidAt: { gte: monthStart } },
+    where: { businessId, branchId, deletedAt: null, paidAt: { gte: monthStart } },
     _sum: { total: true },
     _count: true,
   });
 
   const mtdExpenses = await prisma.expense.aggregate({
-    where: { businessId, deletedAt: null, spentAt: { gte: monthStart } },
+    where: { businessId, branchId, deletedAt: null, spentAt: { gte: monthStart } },
     _sum: { amount: true },
   });
 
@@ -49,39 +49,60 @@ export async function summary(businessId: string) {
     }>
   >`
     SELECT
-      COALESCE(SUM(stock), 0)::int AS units,
-      COALESCE(SUM(stock * cost), 0)::text AS "costValue",
-      COALESCE(SUM(stock * price), 0)::text AS "retailValue",
+      COALESCE(SUM(i.stock), 0)::int AS units,
+      COALESCE(SUM(i.stock * p.cost), 0)::text AS "costValue",
+      COALESCE(SUM(i.stock * p.price), 0)::text AS "retailValue",
       COUNT(*)::int AS "itemCount"
-    FROM "Product"
-    WHERE "businessId"::text = ${businessId}
-      AND "deletedAt" IS NULL
-      AND status = 'ACTIVE'
+    FROM "Product" p
+    JOIN "BranchInventory" i ON i."productId" = p.id
+    WHERE p."businessId"::text = ${businessId}
+      AND i."branchId"::text = ${branchId}
+      AND p."deletedAt" IS NULL
+      AND p.status = 'ACTIVE'
   `;
 
   const lowStockCount = await prisma.product.count({
-    where: { businessId, deletedAt: null, status: "ACTIVE", stock: { lte: 5 } },
+    where: {
+      businessId,
+      deletedAt: null,
+      status: "ACTIVE",
+      inventory: { some: { branchId, stock: { lte: 5 } } },
+    },
   });
 
   const lowStockItems = await prisma.product.findMany({
-    where: { businessId, deletedAt: null, status: "ACTIVE", stock: { lte: 5 } },
-    select: { id: true, name: true, sku: true, stock: true },
-    orderBy: { stock: "asc" },
+    where: {
+      businessId,
+      deletedAt: null,
+      status: "ACTIVE",
+      inventory: { some: { branchId, stock: { lte: 5 } } },
+    },
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      inventory: { where: { branchId }, select: { stock: true } },
+    },
+    orderBy: { name: "asc" },
     take: 5,
   });
+  const mappedLowStockItems = lowStockItems.map(({ inventory, ...product }) => ({
+    ...product,
+    stock: inventory[0]?.stock ?? 0,
+  }));
 
   const [customerCount, supplierCount, employeeCount] = await Promise.all([
     prisma.customer.count({ where: { businessId, deletedAt: null } }),
     prisma.supplier.count({ where: { businessId, deletedAt: null } }),
-    prisma.user.count({ where: { businessId, deletedAt: null } }),
+    prisma.user.count({ where: { businessId, branchId, deletedAt: null } }),
   ]);
 
   const pendingPOs = await prisma.purchase.count({
-    where: { businessId, deletedAt: null, status: "PENDING" },
+    where: { businessId, branchId, deletedAt: null, status: "PENDING" },
   });
 
   const recentSales = await prisma.sale.findMany({
-    where: { businessId, deletedAt: null },
+    where: { businessId, branchId, deletedAt: null },
     orderBy: { paidAt: "desc" },
     take: 10,
     select: {
@@ -106,6 +127,7 @@ export async function summary(businessId: string) {
       COUNT(*)::int AS count
     FROM "Sale"
     WHERE "businessId"::text = ${businessId}
+      AND "branchId"::text = ${branchId}
       AND "deletedAt" IS NULL
       AND "paidAt" >= ${thirtyDaysAgo}
       AND "paidAt" < ${tomorrowStart}
@@ -151,7 +173,7 @@ export async function summary(businessId: string) {
       costValue: round2(Number(inventoryRow?.costValue ?? 0)),
       retailValue: round2(Number(inventoryRow?.retailValue ?? 0)),
       lowStockCount,
-      lowStockItems,
+      lowStockItems: mappedLowStockItems,
     },
     counts: {
       customers: customerCount,
@@ -165,7 +187,7 @@ export async function summary(businessId: string) {
 }
 
 // ─── Staff Performance Overview ────────────────────────
-export async function staffOverview(businessId: string) {
+export async function staffOverview(businessId: string, branchId: string) {
   const now = new Date();
   const todayStart = startOfBusinessDay(now);
   const tomorrowStart = new Date(todayStart.getTime() + MS_PER_DAY);
@@ -207,8 +229,10 @@ export async function staffOverview(businessId: string) {
     FROM "User" u
     LEFT JOIN "Sale" s
       ON s."userId" = u.id
+      AND s."branchId" = ${branchId}
       AND s."deletedAt" IS NULL
     WHERE u."businessId"::text = ${businessId}
+      AND u."branchId"::text = ${branchId}
       AND u."deletedAt" IS NULL
     GROUP BY u.id, u.name, u.email, u.role
     ORDER BY COALESCE(SUM(s.total), 0) DESC, u.name ASC
@@ -233,12 +257,13 @@ export async function staffOverview(businessId: string) {
   });
 }
 
-export async function todaySalesTotal(businessId: string) {
+export async function todaySalesTotal(businessId: string, branchId: string) {
   const todayStart = startOfBusinessDay(new Date());
   const tomorrowStart = new Date(todayStart.getTime() + MS_PER_DAY);
   const result = await prisma.sale.aggregate({
     where: {
       businessId,
+      branchId,
       deletedAt: null,
       paidAt: { gte: todayStart, lt: tomorrowStart },
     },
@@ -248,9 +273,13 @@ export async function todaySalesTotal(businessId: string) {
 }
 
 // ─── Individual Staff Detail ───────────────────────────
-export async function staffDetail(businessId: string, userId: string) {
+export async function staffDetail(
+  businessId: string,
+  branchId: string,
+  userId: string,
+) {
   const user = await prisma.user.findFirst({
-    where: { id: userId, businessId, deletedAt: null },
+    where: { id: userId, businessId, branchId, deletedAt: null },
     select: {
       id: true,
       name: true,
@@ -271,13 +300,14 @@ export async function staffDetail(businessId: string, userId: string) {
 
   const [totalAgg, todayAgg, mtdAgg] = await Promise.all([
     prisma.sale.aggregate({
-      where: { businessId, userId, deletedAt: null },
+      where: { businessId, branchId, userId, deletedAt: null },
       _sum: { total: true },
       _count: true,
     }),
     prisma.sale.aggregate({
       where: {
         businessId,
+        branchId,
         userId,
         deletedAt: null,
         paidAt: { gte: todayStart, lt: tomorrowStart },
@@ -288,6 +318,7 @@ export async function staffDetail(businessId: string, userId: string) {
     prisma.sale.aggregate({
       where: {
         businessId,
+        branchId,
         userId,
         deletedAt: null,
         paidAt: { gte: monthStart },
@@ -309,6 +340,7 @@ export async function staffDetail(businessId: string, userId: string) {
       COUNT(*)::int AS count
     FROM "Sale"
     WHERE "businessId"::text = ${businessId}
+      AND "branchId"::text = ${branchId}
       AND "userId"::text = ${userId}
       AND "deletedAt" IS NULL
       AND "paidAt" >= ${fourteenDaysAgo}
@@ -334,6 +366,7 @@ export async function staffDetail(businessId: string, userId: string) {
     FROM "SaleItem" si
     JOIN "Sale" s ON s.id = si."saleId"
     WHERE s."businessId"::text = ${businessId}
+      AND s."branchId"::text = ${branchId}
       AND s."userId"::text = ${userId}
       AND s."deletedAt" IS NULL
     GROUP BY si."productId", si.name, si.sku
@@ -342,7 +375,7 @@ export async function staffDetail(businessId: string, userId: string) {
   `;
 
   const recentSales = await prisma.sale.findMany({
-    where: { businessId, userId, deletedAt: null },
+    where: { businessId, branchId, userId, deletedAt: null },
     orderBy: { paidAt: "desc" },
     take: 10,
     select: {
@@ -356,7 +389,7 @@ export async function staffDetail(businessId: string, userId: string) {
 
   const paymentBreakdown = await prisma.sale.groupBy({
     by: ["paymentMethod"],
-    where: { businessId, userId, deletedAt: null },
+    where: { businessId, branchId, userId, deletedAt: null },
     _sum: { total: true },
     _count: true,
   });
@@ -401,6 +434,159 @@ export async function staffDetail(businessId: string, userId: string) {
       method: p.paymentMethod,
       count: p._count,
       total: round2(Number(p._sum.total ?? 0)),
+    })),
+  };
+}
+
+function businessDayStart(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.toISOString().slice(0, 10) !== value) {
+    throw new AppError(400, "INVALID_DATE", "Invalid business date");
+  }
+  return new Date(date.getTime() - BUSINESS_UTC_OFFSET_MS);
+}
+
+export async function staffProductSales(
+  businessId: string,
+  branchId: string,
+  userId: string,
+  from: string,
+  to: string,
+) {
+  if (from > to) {
+    throw new AppError(400, "INVALID_RANGE", "from must be before or equal to to");
+  }
+
+  const start = businessDayStart(from);
+  const endDate = businessDayStart(to);
+  const end = new Date(endDate.getTime() + MS_PER_DAY);
+
+  const rows = await prisma.$queryRaw<
+    Array<{
+      day: string;
+      productId: string;
+      name: string;
+      sku: string;
+      unitsSold: number;
+      revenue: string;
+      salesCount: number;
+    }>
+  >`
+    SELECT
+      TO_CHAR(
+        DATE_TRUNC('day', s."paidAt" + INTERVAL '8 hours'),
+        'YYYY-MM-DD'
+      ) AS day,
+      si."productId",
+      si.name,
+      si.sku,
+      SUM(si.quantity)::int AS "unitsSold",
+      COALESCE(SUM(si."lineTotal"), 0)::text AS revenue,
+      COUNT(DISTINCT s.id)::int AS "salesCount"
+    FROM "SaleItem" si
+    JOIN "Sale" s ON s.id = si."saleId"
+    WHERE s."businessId"::text = ${businessId}
+      AND s."branchId"::text = ${branchId}
+      AND s."userId"::text = ${userId}
+      AND s."deletedAt" IS NULL
+      AND s."paidAt" >= ${start}
+      AND s."paidAt" < ${end}
+    GROUP BY
+      DATE_TRUNC('day', s."paidAt" + INTERVAL '8 hours'),
+      si."productId",
+      si.name,
+      si.sku
+    ORDER BY day DESC, SUM(si.quantity) DESC, si.name ASC
+  `;
+
+  const byDay = new Map<
+    string,
+    {
+      day: string;
+      items: {
+        productId: string;
+        name: string;
+        sku: string;
+        unitsSold: number;
+        revenue: number;
+        salesCount: number;
+      }[];
+    }
+  >();
+
+  for (const row of rows) {
+    let daily = byDay.get(row.day);
+    if (!daily) {
+      daily = { day: row.day, items: [] };
+      byDay.set(row.day, daily);
+    }
+    daily.items.push({
+      productId: row.productId,
+      name: row.name,
+      sku: row.sku,
+      unitsSold: row.unitsSold,
+      revenue: round2(Number(row.revenue)),
+      salesCount: row.salesCount,
+    });
+  }
+
+  return { days: Array.from(byDay.values()) };
+}
+
+export async function mySalesHistory(
+  businessId: string,
+  branchId: string,
+  userId: string,
+  date: string,
+) {
+  const start = businessDayStart(date);
+  const end = new Date(start.getTime() + MS_PER_DAY);
+  const sales = await prisma.sale.findMany({
+    where: {
+      businessId,
+      branchId,
+      userId,
+      deletedAt: null,
+      paidAt: { gte: start, lt: end },
+    },
+    orderBy: { paidAt: "desc" },
+    select: {
+      id: true,
+      paidAt: true,
+      total: true,
+      paymentMethod: true,
+      customer: { select: { name: true } },
+      items: {
+        orderBy: { name: "asc" },
+        select: {
+          productId: true,
+          name: true,
+          sku: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+        },
+      },
+    },
+  });
+
+  return {
+    date,
+    sales: sales.map((sale) => ({
+      id: sale.id,
+      paidAt: sale.paidAt,
+      total: round2(Number(sale.total)),
+      paymentMethod: sale.paymentMethod,
+      customerName: sale.customer?.name ?? "Walk-in",
+      items: sale.items.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: round2(Number(item.unitPrice)),
+        lineTotal: round2(Number(item.lineTotal)),
+      })),
     })),
   };
 }

@@ -95,7 +95,7 @@ export function ProductDialog({ open, onOpenChange, product }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:max-w-lg sm:p-6">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit product" : "New product"}</DialogTitle>
           <DialogDescription>
@@ -115,7 +115,7 @@ export function ProductDialog({ open, onOpenChange, product }: Props) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="sku">SKU</Label>
               <Input
@@ -161,7 +161,7 @@ export function ProductDialog({ open, onOpenChange, product }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="price">Selling price (₱)</Label>
               <Input
@@ -199,7 +199,7 @@ export function ProductDialog({ open, onOpenChange, product }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="stock">Stock</Label>
               <Input
@@ -241,10 +241,15 @@ export function ProductDialog({ open, onOpenChange, product }: Props) {
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={pending}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button
+              type="submit"
+              disabled={pending}
+              className="w-full sm:w-auto"
+            >
               {pending
                 ? "Saving..."
                 : isEdit

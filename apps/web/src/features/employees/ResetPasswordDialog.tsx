@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api";
 import { Employee, useResetPassword } from "./use-employees";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -96,9 +96,8 @@ export function ResetPasswordDialog({ open, onOpenChange, employee }: Props) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="new-password">New password</Label>
-            <Input
+            <PasswordInput
               id="new-password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
@@ -113,9 +112,8 @@ export function ResetPasswordDialog({ open, onOpenChange, employee }: Props) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirm-password">Confirm password</Label>
-            <Input
+            <PasswordInput
               id="confirm-password"
-              type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoComplete="new-password"

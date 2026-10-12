@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth, type Role, type AuthUser } from "@/lib/auth-store";
 import { logout } from "@/features/auth/use-auth";
+import { BranchSwitcher } from "./BranchSwitcher";
+import { PwaStatus } from "@/components/pwa/PwaStatus";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -24,6 +26,7 @@ import {
   UserCog,
   Settings,
   LogOut,
+  History,
   Menu,
   X,
   ChevronUp,
@@ -39,12 +42,34 @@ interface NavItem {
   roles?: Role[];
 }
 
+const pagesWithOwnHeader = new Set([
+  "/reports",
+  "/pos",
+  "/products",
+  "/inventory",
+  "/customers",
+  "/suppliers",
+  "/purchases",
+  "/expenses",
+  "/forecasting",
+  "/team",
+  "/employees",
+]);
+
 const mainNav: NavItem[] = [
   {
     to: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
     exact: true,
+    roles: ["OWNER", "MANAGER"],
+  },
+  {
+    to: "/sales-history",
+    label: "Sales History",
+    icon: History,
+    exact: true,
+    roles: ["STAFF"],
   },
   { to: "/pos", label: "Point of Sale", icon: ShoppingCart },
   { to: "/products", label: "Products", icon: Package },
@@ -55,7 +80,12 @@ const mainNav: NavItem[] = [
 const operationsNav: NavItem[] = [
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/purchases", label: "Purchases", icon: ClipboardList },
-  { to: "/expenses", label: "Expenses", icon: Wallet },
+  {
+    to: "/expenses",
+    label: "Expenses",
+    icon: Wallet,
+    roles: ["OWNER", "MANAGER"],
+  },
 ];
 
 const insightsNav: NavItem[] = [
@@ -256,10 +286,10 @@ function SidebarContent({
     <>
       <div className="px-4 py-5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <img src="/smallbiz-mark.svg" alt="" className="h-8 w-8 shrink-0" />
+          <img src="/storepulse-mark.svg" alt="" className="h-8 w-8 shrink-0" />
           <div className="min-w-0">
             <h1 className="font-semibold text-[15px] leading-tight">
-              SmallBiz
+              StorePulse
             </h1>
             <p className="text-[11px] text-muted-foreground truncate">
               {user.businessName}
@@ -305,6 +335,7 @@ function SidebarContent({
 
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
 
   const closeMobile = () => setMobileOpen(false);
 
@@ -341,13 +372,19 @@ export function AppShell() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <img src="/smallbiz-mark.svg" alt="" className="h-7 w-7 shrink-0" />
-            <h1 className="font-semibold text-base">SmallBiz</h1>
+            <img src="/storepulse-mark.svg" alt="" className="h-7 w-7 shrink-0" />
+            <h1 className="font-semibold text-base">StorePulse</h1>
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
+            {!pagesWithOwnHeader.has(location.pathname) && (
+              <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+                <PwaStatus />
+                <BranchSwitcher />
+              </div>
+            )}
             <Outlet />
           </div>
         </main>

@@ -7,6 +7,7 @@ import {
   useDeleteExpense,
 } from "./use-expenses";
 import { ExpenseDialog } from "./ExpenseDialog";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { apiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,15 +44,14 @@ export function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Expenses</h2>
-          <p className="text-sm text-muted-foreground">Track operating costs</p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
+      <PageHeader title="Expenses" description="Track operating costs">
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="w-full rounded-xl sm:w-auto"
+        >
           <Plus className="h-4 w-4 mr-2" /> New expense
         </Button>
-      </div>
+      </PageHeader>
 
       {summary && (
         <div className="grid gap-4 md:grid-cols-3">

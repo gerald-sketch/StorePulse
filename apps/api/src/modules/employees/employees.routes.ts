@@ -6,14 +6,14 @@ import {
   ProductIdParam,
 } from "@sb/shared";
 import { validate } from "../../middleware/validate";
-import { requireAuth, requireRole } from "../../middleware/auth";
+import { requireAuth, requireBranch, requireRole } from "../../middleware/auth";
 import * as c from "./employees.controller";
 
 export const employeesRouter = Router();
 employeesRouter.use(requireAuth);
 employeesRouter.use(requireRole(["OWNER", "MANAGER"]));
 
-employeesRouter.get("/", c.list);
+employeesRouter.get("/", requireBranch, c.list);
 
 employeesRouter.post(
   "/",

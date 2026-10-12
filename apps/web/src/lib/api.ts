@@ -1,4 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { useBranchStore } from "./branch-store";
 
 const apiBaseUrl =
   (
@@ -31,6 +32,9 @@ export function getAccessToken(): string | null {
 */
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const branchId = useBranchStore.getState().selectedBranchId;
+  if (branchId) config.headers["x-branch-id"] = branchId;
+
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -77,7 +81,7 @@ async function doRefresh(): Promise<string | null> {
     setAccessToken(token);
 
     return token;
-  } catch (error) {
+  } catch {
     setAccessToken(null);
     return null;
   }
@@ -150,6 +154,18 @@ api.interceptors.response.use(
 
 export function apiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
+    if (error.response?.status === 403) {
+      return "Access Restricted";
+    }
+
+    if (error.response?.status === 502 || error.response?.status === 503 || error.response?.status === 504) {
+      return "The login service is temporarily unavailable. Please try again in a moment.";
+    }
+
+    if (error.code === "ERR_NETWORK") {
+      return "Unable to reach the server. Please check your connection and try again.";
+    }
+
     const data = error.response?.data as
       | {
           message?: string;

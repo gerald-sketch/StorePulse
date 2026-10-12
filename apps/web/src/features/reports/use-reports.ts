@@ -1,6 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+export interface ReportDateRange {
+  from: string;
+  to: string;
+}
+
+function dateRangeParams(range?: ReportDateRange): string {
+  if (!range) return "";
+  const params = new URLSearchParams({ from: range.from, to: range.to });
+  return `&${params.toString()}`;
+}
+
 export interface SalesSummaryRow {
   period: string;
   salesCount: number;
@@ -56,20 +67,29 @@ export interface TopProductsData {
   rows: TopProductRow[];
 }
 
-export function useSalesSummary(groupBy: "day" | "week" | "month") {
+export function useSalesSummary(
+  groupBy: "day" | "week" | "month",
+  range?: ReportDateRange,
+) {
   return useQuery<SalesSummaryData>({
-    queryKey: ["reports", "sales-summary", groupBy],
+    queryKey: ["reports", "sales-summary", groupBy, range],
     queryFn: async () =>
-      (await api.get(`/reports/sales-summary?groupBy=${groupBy}`))
+      (await api.get(
+        `/reports/sales-summary?groupBy=${groupBy}${dateRangeParams(range)}`,
+      ))
         .data as SalesSummaryData,
   });
 }
 
-export function useProfitLoss(enabled = true) {
+export function useProfitLoss(range?: ReportDateRange, enabled = true) {
+  const params = range
+    ? new URLSearchParams({ from: range.from, to: range.to }).toString()
+    : "";
   return useQuery<ProfitLossData>({
-    queryKey: ["reports", "profit-loss"],
+    queryKey: ["reports", "profit-loss", range],
     queryFn: async () =>
-      (await api.get("/reports/profit-loss")).data as ProfitLossData,
+      (await api.get(`/reports/profit-loss${params ? `?${params}` : ""}`)).data as
+        ProfitLossData,
     enabled,
   });
 }
@@ -84,11 +104,18 @@ export function useInventoryValuation(enabled = true) {
   });
 }
 
-export function useTopProducts(enabled = true) {
+export function useTopProducts(range?: ReportDateRange, enabled = true) {
+  const params = range
+    ? new URLSearchParams({ from: range.from, to: range.to }).toString()
+    : "";
   return useQuery<TopProductsData>({
-    queryKey: ["reports", "top-products"],
+    queryKey: ["reports", "top-products", range],
     queryFn: async () =>
-      (await api.get("/reports/top-products?limit=10")).data as TopProductsData,
+      (
+        await api.get(
+          `/reports/top-products?limit=10${params ? `&${params}` : ""}`,
+        )
+      ).data as TopProductsData,
     enabled,
   });
 }

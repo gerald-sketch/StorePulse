@@ -17,6 +17,13 @@ function requireId(req: Request): string {
   return id;
 }
 
+function requireBranch(req: Request): string {
+  if (!req.branchId) {
+    throw new AppError(400, "BRANCH_REQUIRED", "Select a branch");
+  }
+  return req.branchId;
+}
+
 export async function list(
   req: Request,
   res: Response,
@@ -35,6 +42,7 @@ export async function list(
 
     const result = await productsService.list(
       user.businessId,
+      requireBranch(req),
       page,
       limit,
       search,
@@ -55,6 +63,7 @@ export async function getById(
     const user = requireUser(req);
     const product = await productsService.getById(
       user.businessId,
+      requireBranch(req),
       requireId(req),
     );
     res.json(product);
@@ -72,6 +81,7 @@ export async function create(
     const user = requireUser(req);
     const product = await productsService.create(
       user.businessId,
+      requireBranch(req),
       user.id,
       req.body,
     );
@@ -90,6 +100,7 @@ export async function update(
     const user = requireUser(req);
     const product = await productsService.update(
       user.businessId,
+      requireBranch(req),
       requireId(req),
       req.body,
     );
@@ -106,7 +117,11 @@ export async function remove(
 ): Promise<void> {
   try {
     const user = requireUser(req);
-    await productsService.softDelete(user.businessId, requireId(req));
+    await productsService.softDelete(
+      user.businessId,
+      requireBranch(req),
+      requireId(req),
+    );
     res.json({ ok: true });
   } catch (e) {
     next(e);

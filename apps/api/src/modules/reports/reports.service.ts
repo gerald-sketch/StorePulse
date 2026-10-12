@@ -30,6 +30,7 @@ export function resolveRange(from?: Date, to?: Date): { from: Date; to: Date } {
 // ─── Sales summary ─────────────────────────────────────
 export async function salesSummary(
   businessId: string,
+  branchId: string,
   from: Date,
   to: Date,
   groupBy: GroupBy,
@@ -56,6 +57,7 @@ export async function salesSummary(
         "total"
       FROM "Sale"
       WHERE "businessId" = ${businessId}
+        AND "branchId" = ${branchId}
         AND "paidAt" >= ${from}
         AND "paidAt" < ${to}
         AND "deletedAt" IS NULL
@@ -124,11 +126,17 @@ export async function salesSummary(
   };
 }
 // ─── Profit & Loss ─────────────────────────────────────
-export async function profitLoss(businessId: string, from: Date, to: Date) {
+export async function profitLoss(
+  businessId: string,
+  branchId: string,
+  from: Date,
+  to: Date,
+) {
   const [revRow] = await prisma.$queryRaw<Array<{ revenue: string }>>`
     SELECT COALESCE(SUM("subtotal" - "discount"), 0)::text AS revenue
     FROM "Sale"
     WHERE "businessId" = ${businessId}
+      AND "branchId" = ${branchId}
       AND "paidAt" >= ${from}
       AND "paidAt" < ${to}
       AND "deletedAt" IS NULL
@@ -140,6 +148,7 @@ export async function profitLoss(businessId: string, from: Date, to: Date) {
     JOIN "Sale" s ON s.id = si."saleId"
     JOIN "Product" p ON p.id = si."productId"
     WHERE s."businessId" = ${businessId}
+      AND s."branchId" = ${branchId}
       AND s."paidAt" >= ${from}
       AND s."paidAt" < ${to}
       AND s."deletedAt" IS NULL
@@ -149,6 +158,7 @@ export async function profitLoss(businessId: string, from: Date, to: Date) {
     SELECT COALESCE(SUM(amount), 0)::text AS expenses
     FROM "Expense"
     WHERE "businessId" = ${businessId}
+      AND "branchId" = ${branchId}
       AND "spentAt" >= ${from}
       AND "spentAt" < ${to}
       AND "deletedAt" IS NULL
@@ -174,7 +184,7 @@ export async function profitLoss(businessId: string, from: Date, to: Date) {
 }
 
 // ─── Inventory valuation ───────────────────────────────
-export async function inventoryValuation(businessId: string) {
+export async function inventoryValuation(businessId: string, branchId: string) {
   const rows = await prisma.$queryRaw<
     Array<{
       id: string;
@@ -188,14 +198,17 @@ export async function inventoryValuation(businessId: string) {
     }>
   >`
     SELECT
-      id, name, sku, stock,
-      cost::text AS cost,
-      price::text AS price,
-      (stock * cost)::text AS "costValue",
-      (stock * price)::text AS "retailValue"
-    FROM "Product"
-    WHERE "businessId" = ${businessId} AND "deletedAt" IS NULL
-    ORDER BY name ASC
+      p.id, p.name, p.sku, i.stock,
+      p.cost::text AS cost,
+      p.price::text AS price,
+      (i.stock * p.cost)::text AS "costValue",
+      (i.stock * p.price)::text AS "retailValue"
+    FROM "Product" p
+    JOIN "BranchInventory" i ON i."productId" = p.id
+    WHERE p."businessId" = ${businessId}
+      AND i."branchId" = ${branchId}
+      AND p."deletedAt" IS NULL
+    ORDER BY p.name ASC
   `;
 
   const items = rows.map((r) => ({
@@ -226,6 +239,7 @@ export async function inventoryValuation(businessId: string) {
 // ─── Top products ──────────────────────────────────────
 export async function topProducts(
   businessId: string,
+  branchId: string,
   from: Date,
   to: Date,
   limit: number,
@@ -248,6 +262,7 @@ export async function topProducts(
     FROM "SaleItem" si
     JOIN "Sale" s ON s.id = si."saleId"
     WHERE s."businessId" = ${businessId}
+      AND s."branchId" = ${branchId}
       AND s."paidAt" >= ${from}
       AND s."paidAt" < ${to}
       AND s."deletedAt" IS NULL
@@ -281,11 +296,17 @@ function csvEscape(value: unknown): string {
 
 export async function exportSalesCsv(
   businessId: string,
+  branchId: string,
   from: Date,
   to: Date,
 ): Promise<string> {
   const sales = await prisma.sale.findMany({
-    where: { businessId, deletedAt: null, paidAt: { gte: from, lt: to } },
+    where: {
+      businessId,
+      branchId,
+      deletedAt: null,
+      paidAt: { gte: from, lt: to },
+    },
     include: {
       customer: { select: { name: true } },
       user: { select: { name: true } },

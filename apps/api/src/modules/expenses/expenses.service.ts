@@ -4,12 +4,14 @@ import { CreateExpenseInput, UpdateExpenseInput } from "@sb/shared";
 
 export async function list(
   businessId: string,
+  branchId: string,
   page: number,
   limit: number,
   category?: string,
 ) {
   const where = {
     businessId,
+    branchId,
     deletedAt: null,
     ...(category ? { category } : {}),
   };
@@ -27,12 +29,14 @@ export async function list(
 
 export async function create(
   businessId: string,
+  branchId: string,
   userId: string,
   input: CreateExpenseInput,
 ) {
   return prisma.expense.create({
     data: {
       businessId,
+      branchId,
       userId,
       category: input.category,
       description: input.description,
@@ -44,11 +48,12 @@ export async function create(
 
 export async function update(
   businessId: string,
+  branchId: string,
   id: string,
   input: UpdateExpenseInput,
 ) {
   const existing = await prisma.expense.findFirst({
-    where: { id, businessId, deletedAt: null },
+    where: { id, businessId, branchId, deletedAt: null },
     select: { id: true },
   });
   if (!existing) throw new AppError(404, "NOT_FOUND", "Expense not found");
@@ -66,9 +71,9 @@ export async function update(
   });
 }
 
-export async function softDelete(businessId: string, id: string) {
+export async function softDelete(businessId: string, branchId: string, id: string) {
   const existing = await prisma.expense.findFirst({
-    where: { id, businessId, deletedAt: null },
+    where: { id, businessId, branchId, deletedAt: null },
     select: { id: true },
   });
   if (!existing) throw new AppError(404, "NOT_FOUND", "Expense not found");
@@ -83,6 +88,7 @@ export async function softDelete(businessId: string, id: string) {
  */
 export async function monthlySummary(
   businessId: string,
+  branchId: string,
   year: number,
   month: number,
 ) {
@@ -93,6 +99,7 @@ export async function monthlySummary(
     by: ["category"],
     where: {
       businessId,
+      branchId,
       deletedAt: null,
       spentAt: { gte: start, lt: end },
     },
