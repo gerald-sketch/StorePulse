@@ -115,6 +115,9 @@ export function PwaRuntime() {
             break;
           }
           await removePendingSale(sale.id);
+          window.dispatchEvent(
+            new CustomEvent("smallbiz-offline-sale-synced", { detail: sale }),
+          );
           syncedCount += 1;
         } catch (error) {
           const status = axios.isAxiosError(error)
