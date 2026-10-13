@@ -754,16 +754,16 @@ export function ReportsPage() {
                   </CardContent>
                 </Card>
               </div>
-              <div className="max-h-96 min-w-0 overflow-auto rounded-xl border border-slate-200 bg-white">
+              <div className="inventory-table-scroll max-h-96 min-w-0 overflow-x-auto overflow-y-scroll rounded-xl border border-slate-200 bg-white">
                 <Table className="min-w-[680px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead className="text-right">Stock</TableHead>
-                      <TableHead className="text-right">Cost</TableHead>
-                      <TableHead className="text-right">Cost Value</TableHead>
-                      <TableHead className="text-right">Retail Value</TableHead>
+                  <TableHeader className="sticky top-0 z-10 bg-white">
+                    <TableRow className="bg-white hover:bg-white">
+                      <TableHead className="bg-white">Product</TableHead>
+                      <TableHead className="bg-white">SKU</TableHead>
+                      <TableHead className="bg-white text-right">Stock</TableHead>
+                      <TableHead className="bg-white text-right">Cost</TableHead>
+                      <TableHead className="bg-white text-right">Cost Value</TableHead>
+                      <TableHead className="bg-white text-right">Retail Value</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
