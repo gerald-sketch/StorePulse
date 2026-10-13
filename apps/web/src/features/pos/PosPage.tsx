@@ -13,6 +13,7 @@ import {
   Tag,
   Package,
   Banknote,
+  Check,
   Smartphone,
   ChevronRight,
   ArrowLeft,
@@ -385,8 +386,8 @@ export function PosPage() {
     </div>
   );
 
-  // ─── Checkout form ───
-  const checkoutForm = (
+  // ─── Order details ───
+  const orderOptions = (
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -444,9 +445,14 @@ export function PosPage() {
           />
         </div>
       </div>
+    </div>
+  );
 
+  // ─── Payment controls ───
+  const paymentForm = (
+    <div className="space-y-2.5">
       <div className="space-y-2">
-        <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+        <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
           Payment method
         </Label>
         <div className="grid grid-cols-3 gap-2">
@@ -460,26 +466,22 @@ export function PosPage() {
                 if (m.value !== paymentMethod) setPaymentReference("");
               }}
               className={cn(
-                "flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-all",
+                "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 transition-all",
                 paymentMethod === m.value
-                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  ? "border-teal-600 bg-teal-600 text-white shadow-sm"
                   : "border-border/60 hover:bg-muted/50",
               )}
             >
               <m.icon
                 className={cn(
-                  "h-5 w-5",
-                  paymentMethod === m.value
-                    ? "text-primary"
-                    : "text-muted-foreground",
+                  "h-4 w-4",
+                  paymentMethod === m.value ? "text-white" : "text-muted-foreground",
                 )}
               />
               <span
                 className={cn(
                   "text-xs font-medium",
-                  paymentMethod === m.value
-                    ? "text-primary"
-                    : "text-foreground",
+                  paymentMethod === m.value ? "text-white" : "text-foreground",
                 )}
               >
                 {m.label}
@@ -490,28 +492,32 @@ export function PosPage() {
       </div>
 
       {paymentMethod === "CASH" && (
-        <div className="space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-3">
-          <Label
-            htmlFor="tendered"
-            className="text-[11px] font-medium text-primary uppercase tracking-wide"
-          >
-            Cash received
-          </Label>
-          <Input
-            id="tendered"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={amountTendered}
-            onChange={(e) =>
-              setAmountTendered(
-                e.target.value === "" ? "" : Number(e.target.value),
-              )
-            }
-            placeholder="0.00"
-            className="h-12 text-lg font-bold text-right rounded-lg tabular-nums bg-background"
-          />
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="tendered" className="text-xs font-medium">
+              Cash received
+            </Label>
+            <div className="relative ml-auto w-36">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                ₱
+              </span>
+              <Input
+                id="tendered"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={amountTendered}
+                onChange={(e) =>
+                  setAmountTendered(
+                    e.target.value === "" ? "" : Number(e.target.value),
+                  )
+                }
+                placeholder="0.00"
+                className="h-10 pl-7 text-right text-base font-semibold tabular-nums"
+              />
+            </div>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {quickBills.map((v) => (
               <button
@@ -519,30 +525,31 @@ export function PosPage() {
                 type="button"
                 onClick={() => setAmountTendered(v)}
                 className={cn(
-                  "px-2.5 py-1.5 rounded-md border text-xs font-medium transition-all",
+                  "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all",
                   tenderedNum === v
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-primary/30 hover:bg-primary/10",
+                    ? "border-teal-600 bg-teal-600 text-white"
+                    : "border-border/60 bg-background hover:border-teal-600/50 hover:bg-teal-50 dark:hover:bg-teal-950/30",
                 )}
               >
+                {tenderedNum === v && <Check className="h-3 w-3" />}
                 ₱{v.toLocaleString()}
               </button>
             ))}
           </div>
           {changePreview !== null && (
-            <div className="flex items-center justify-between pt-2 border-t border-primary/20">
-              <span className="text-xs font-medium text-primary">Change</span>
-              <span className="text-lg font-bold tabular-nums text-primary">
+            <div className="flex items-center justify-between rounded-md bg-teal-50 px-2.5 py-1.5 dark:bg-teal-950/30">
+              <span className="text-xs font-medium text-teal-700 dark:text-teal-300">Change</span>
+              <span className="text-sm font-bold tabular-nums text-teal-700 dark:text-teal-300">
                 {peso(changePreview)}
               </span>
             </div>
           )}
           {cashShort && (
-            <div className="flex items-center justify-between pt-2 border-t border-destructive/20">
+            <div className="flex items-center justify-between rounded-md bg-destructive/5 px-2.5 py-1.5">
               <span className="text-xs font-medium text-destructive">
                 Short by
               </span>
-              <span className="text-lg font-bold tabular-nums text-destructive">
+              <span className="text-sm font-bold tabular-nums text-destructive">
                 {peso(total - tenderedNum)}
               </span>
             </div>
@@ -551,100 +558,45 @@ export function PosPage() {
       )}
 
       {paymentMethod !== "CASH" && (
-        <div className="space-y-3">
-          {/* QR preview / trigger */}
+        <div className="space-y-2">
           <button
             type="button"
             onClick={() => setQrDialogOpen(true)}
             className={cn(
-              "w-full flex items-center gap-3 rounded-xl border p-3 transition-all text-left",
+              "flex h-9 w-full items-center gap-2 rounded-lg border px-2 text-left transition-all",
               currentQrUrl
-                ? "border-primary/30 bg-primary/5 hover:bg-primary/10"
+                ? "border-border/60 hover:bg-muted/50"
                 : "border-amber-500/30 bg-amber-500/[0.03] hover:bg-amber-500/[0.06]",
             )}
           >
-            <div
-              className={cn(
-                "h-14 w-14 rounded-lg flex items-center justify-center shrink-0",
-                currentQrUrl
-                  ? "bg-white border border-border/60"
-                  : "bg-amber-500/15",
-              )}
-            >
-              {currentQrUrl ? (
-                <img
-                  src={currentQrUrl}
-                  alt="QR code"
-                  className="h-full w-full object-contain rounded-lg"
-                />
-              ) : (
-                <QrCode className="h-6 w-6 text-amber-600" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p
-                className={cn(
-                  "text-sm font-medium",
-                  currentQrUrl ? "text-foreground" : "text-amber-700",
-                )}
-              >
-                {currentQrUrl ? "Show QR code" : "No QR code uploaded"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {currentQrUrl
-                  ? "Tap to display the customer's QR"
-                  : "Ask the owner to add one in Settings"}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            <QrCode className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-xs font-medium">
+              {currentQrUrl ? "Show payment QR" : "Payment QR not set"}
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
 
-          {/* Reference number — REQUIRED */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor="reference"
-                className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide"
-              >
-                Reference # <span className="text-destructive">*</span>
-              </Label>
-              {referenceMissing && (
-                <span className="text-[10px] font-medium text-destructive">
-                  Required
-                </span>
-              )}
-            </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="reference" className="sr-only">
+              Payment reference number
+            </Label>
             <Input
               id="reference"
               type="text"
               value={paymentReference}
               onChange={(e) => setPaymentReference(e.target.value)}
-              placeholder={
-                paymentMethod === "GCASH"
-                  ? "GCash reference from confirmation"
-                  : "Maya reference from confirmation"
-              }
+              placeholder={`${paymentMethod === "GCASH" ? "GCash" : "Maya"} reference number *`}
               maxLength={64}
               className={cn(
-                "h-10 rounded-lg",
+                "h-9 rounded-lg text-xs",
                 referenceMissing &&
                   "border-destructive/50 focus-visible:ring-destructive/30",
               )}
             />
-            {referenceMissing ? (
-              <div className="flex items-start gap-1.5 text-[11px] text-destructive">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>
-                  Enter the {paymentMethod === "GCASH" ? "GCash" : "Maya"}{" "}
-                  reference number from the customer's confirmation screen to
-                  continue.
-                </span>
-              </div>
-            ) : (
-              <p className="text-[11px] text-muted-foreground">
-                Enter the reference from the customer's payment confirmation for
-                reconciliation.
-              </p>
+            {referenceMissing && (
+              <span className="shrink-0 text-[10px] font-medium text-destructive">
+                Required
+              </span>
             )}
           </div>
         </div>
@@ -653,22 +605,22 @@ export function PosPage() {
   );
 
   const totalsBlock = (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-sm">
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
         <span className="text-muted-foreground">
           Subtotal · {itemCount} {itemCount === 1 ? "item" : "items"}
         </span>
-        <span className="tabular-nums">{peso(subtotal)}</span>
+        <span className="tabular-nums font-medium">{peso(subtotal)}</span>
       </div>
       {discount > 0 && (
-        <div className="flex justify-between text-sm text-destructive">
+        <div className="flex justify-between text-xs text-destructive">
           <span>Discount</span>
           <span className="tabular-nums">−{peso(discount)}</span>
         </div>
       )}
-      <div className="flex items-baseline justify-between pt-2 border-t border-border/60">
-        <span className="text-sm font-medium">Total</span>
-        <span className="text-2xl font-bold tracking-tight tabular-nums">
+      <div className="flex items-baseline justify-between border-t border-border/60 pt-1.5">
+        <span className="text-sm font-semibold">Total</span>
+        <span className="text-2xl font-bold tracking-tight tabular-nums text-teal-700 dark:text-teal-300">
           {peso(total)}
         </span>
       </div>
@@ -694,7 +646,7 @@ export function PosPage() {
         `Short by ${peso(total - tenderedNum)}`
       ) : (
         <>
-          Checkout {peso(total)}
+          Complete Sale
           <ChevronRight className="h-4 w-4 ml-1" />
         </>
       )}
@@ -871,7 +823,7 @@ export function PosPage() {
           </div>
         </div>
 
-        <Card className="hidden lg:flex flex-col min-h-0 overflow-hidden border-border/60 shadow-sm">
+        <Card className="hidden lg:flex min-h-0 flex-col overflow-hidden border-border/60 shadow-sm">
           <div className="shrink-0 px-5 py-4 border-b border-border/60 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -894,10 +846,10 @@ export function PosPage() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {cart.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full py-10 text-center px-5">
-                <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mb-3">
+              <div className="flex h-full flex-col items-center justify-center px-5 py-10 text-center">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
                   <ShoppingCart className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <p className="text-sm font-medium">Cart is empty</p>
@@ -908,15 +860,16 @@ export function PosPage() {
             ) : (
               <>
                 {cartItems}
-                <div className="px-5 py-4 border-t border-border/60 bg-muted/20">
-                  {checkoutForm}
-                </div>
-                <div className="sticky bottom-0 px-5 py-4 border-t border-border/60 bg-card shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.06)]">
-                  {totalsBlock}
-                  <div className="mt-4">{checkoutButton}</div>
+                <div className="border-t border-border/60 bg-muted/20 px-5 py-3">
+                  {orderOptions}
                 </div>
               </>
             )}
+          </div>
+          <div className="shrink-0 space-y-2.5 border-t border-border/60 bg-card px-4 py-3 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.06)]">
+            {totalsBlock}
+            {paymentForm}
+            {checkoutButton}
           </div>
         </Card>
       </div>
@@ -977,7 +930,7 @@ export function PosPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-10 text-center px-5">
               <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mb-3">
@@ -991,19 +944,18 @@ export function PosPage() {
           ) : (
             <>
               {cartItems}
-              <div className="px-4 py-4 border-t border-border/40">
-                {checkoutForm}
+              <div className="border-t border-border/40 px-4 py-3">
+                {orderOptions}
               </div>
             </>
           )}
         </div>
 
-        {cart.length > 0 && (
-          <div className="shrink-0 border-t border-border bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            {totalsBlock}
-            <div className="mt-4">{checkoutButton}</div>
-          </div>
-        )}
+        <div className="shrink-0 space-y-2.5 border-t border-border bg-card px-4 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)]">
+          {totalsBlock}
+          {paymentForm}
+          {checkoutButton}
+        </div>
       </div>
 
         {paymentMethod !== "CASH" && (
