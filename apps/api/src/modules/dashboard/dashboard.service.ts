@@ -21,6 +21,13 @@ function startOfBusinessMonth(d: Date): Date {
   return new Date(x.getTime() - BUSINESS_UTC_OFFSET_MS);
 }
 
+function startOfBusinessYear(d: Date): Date {
+  const x = new Date(d.getTime() + BUSINESS_UTC_OFFSET_MS);
+  x.setUTCMonth(0, 1);
+  x.setUTCHours(0, 0, 0, 0);
+  return new Date(x.getTime() - BUSINESS_UTC_OFFSET_MS);
+}
+
 // ─── Overall business summary ──────────────────────────
 export async function summary(businessId: string, branchId: string) {
   const now = new Date();
@@ -28,6 +35,9 @@ export async function summary(businessId: string, branchId: string) {
   const tomorrowStart = new Date(todayStart.getTime() + MS_PER_DAY);
   const monthStart = startOfBusinessMonth(now);
   const thirtyDaysAgo = new Date(todayStart.getTime() - 29 * MS_PER_DAY);
+  const yearStart = startOfBusinessYear(now);
+  const nextYearStart = new Date(yearStart);
+  nextYearStart.setUTCFullYear(nextYearStart.getUTCFullYear() + 1);
 
   const mtdSales = await prisma.sale.aggregate({
     where: { businessId, branchId, deletedAt: null, paidAt: { gte: monthStart } },
@@ -153,6 +163,33 @@ export async function summary(businessId: string, branchId: string) {
     };
   });
 
+  const monthly = await prisma.$queryRaw<
+    Array<{ month: number; total: string; count: number }>
+  >`
+    SELECT
+      EXTRACT(MONTH FROM DATE_TRUNC('month', "paidAt" + INTERVAL '8 hours'))::int AS month,
+      COALESCE(SUM(total), 0)::text AS total,
+      COUNT(*)::int AS count
+    FROM "Sale"
+    WHERE "businessId"::text = ${businessId}
+      AND "branchId"::text = ${branchId}
+      AND "deletedAt" IS NULL
+      AND "paidAt" >= ${yearStart}
+      AND "paidAt" < ${nextYearStart}
+    GROUP BY DATE_TRUNC('month', "paidAt" + INTERVAL '8 hours')
+    ORDER BY month ASC
+  `;
+  const monthlyByMonth = new Map(monthly.map((row) => [row.month, row]));
+  const monthly12 = Array.from({ length: 12 }, (_, index) => {
+    const month = index + 1;
+    const row = monthlyByMonth.get(month);
+    return {
+      month,
+      total: round2(Number(row?.total ?? 0)),
+      count: row?.count ?? 0,
+    };
+  });
+
   const revenueMTD = Number(mtdSales._sum.total ?? 0);
   const expensesMTD = Number(mtdExpenses._sum.amount ?? 0);
 
@@ -183,6 +220,7 @@ export async function summary(businessId: string, branchId: string) {
     },
     recentSales,
     daily30d,
+    monthly12,
   };
 }
 

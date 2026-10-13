@@ -6,6 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-store";
 import { useNavigate } from "react-router-dom";
 import {
@@ -65,13 +72,21 @@ interface Summary {
     user: { name: string } | null;
   }[];
   daily30d: { day: string; total: number; count: number }[];
+  monthly12: { month: number; total: number; count: number }[];
 }
 
 const CHART_PERIODS = [
-  { days: 7, label: "7 days" },
-  { days: 15, label: "15 days" },
-  { days: 30, label: "1 month" },
+  { value: "7-days", label: "7 Days" },
+  { value: "15-days", label: "15 Days" },
+  { value: "monthly", label: "Monthly" },
 ] as const;
+
+type ChartPeriod = (typeof CHART_PERIODS)[number]["value"];
+type ChartMetric = "revenue" | "orders";
+
+function isChartPeriod(value: string): value is ChartPeriod {
+  return CHART_PERIODS.some((period) => period.value === value);
+}
 
 function peso(n: number) {
   return `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -162,7 +177,8 @@ function StatCard({
 export function DashboardPage() {
   const user = useAuth((s) => s.user);
   const navigate = useNavigate();
-  const [chartPeriod, setChartPeriod] = useState<7 | 15 | 30>(15);
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("7-days");
+  const [chartMetric, setChartMetric] = useState<ChartMetric>("revenue");
 
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "summary"],
@@ -204,13 +220,47 @@ export function DashboardPage() {
     v: d.count > 0 ? d.total / d.count : 0,
   }));
 
-  const chartData = data.daily30d.slice(-chartPeriod).map((d) => ({
-    day: d.day.slice(5),
-    revenue: d.total,
-    orders: d.count,
-  }));
+  const dailyByDay = new Map(data.daily30d.map((entry) => [entry.day, entry]));
+  const latestDay = data.daily30d[data.daily30d.length - 1]?.day;
+  const todayDate = new Date(`${latestDay ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const weekStart = new Date(todayDate);
+  weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+  const chartData =
+    chartPeriod === "7-days"
+      ? Array.from({ length: 7 }, (_, index) => {
+          const date = new Date(weekStart);
+          date.setUTCDate(weekStart.getUTCDate() + index);
+          const day = date.toISOString().slice(0, 10);
+          const value = dailyByDay.get(day);
+          return {
+            day: date.toLocaleDateString("en-US", {
+              weekday: "long",
+              timeZone: "UTC",
+            }),
+            revenue: value?.total ?? 0,
+            orders: value?.count ?? 0,
+          };
+        })
+      : chartPeriod === "15-days"
+        ? data.daily30d.slice(-15).map((entry) => ({
+            day: new Date(`${entry.day}T00:00:00Z`).toLocaleDateString("en-PH", {
+              month: "short",
+              day: "numeric",
+              timeZone: "UTC",
+            }),
+            revenue: entry.total,
+            orders: entry.count,
+          }))
+        : data.monthly12.map((entry) => ({
+            day: new Date(Date.UTC(2000, entry.month - 1, 1)).toLocaleDateString(
+              "en-US",
+              { month: "long", timeZone: "UTC" },
+            ),
+            revenue: entry.total,
+            orders: entry.count,
+          }));
   const chartPeriodLabel =
-    chartPeriod === 30 ? "1 month" : `${chartPeriod} days`;
+    CHART_PERIODS.find(({ value }) => value === chartPeriod)?.label ?? "7 Days";
 
   return (
     <div className="space-y-5">
@@ -267,42 +317,68 @@ export function DashboardPage() {
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <Card className="card-soft">
           <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+            <div className="min-w-0">
               <CardTitle className="text-base font-semibold">
                 Sales Overview
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Revenue and order count over the last {chartPeriodLabel}
+                {chartMetric === "revenue" ? "Revenue" : "Orders"} · {chartPeriodLabel}
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div
-                className="flex items-center gap-1"
-                role="group"
-                aria-label="Chart period"
-              >
-                {CHART_PERIODS.map(({ days, label }) => (
-                  <Button
-                    key={days}
-                    type="button"
-                    variant={chartPeriod === days ? "default" : "outline"}
-                    size="sm"
-                    className="h-7 rounded-lg px-2 text-xs"
-                    aria-pressed={chartPeriod === days}
-                    onClick={() => setChartPeriod(days)}
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+              <div className="flex items-center justify-between gap-2 sm:justify-end">
+                <Select
+                  value={chartPeriod}
+                  onValueChange={(value) => {
+                    if (isChartPeriod(value)) setChartPeriod(value);
+                  }}
+                >
+                  <SelectTrigger
+                    className="h-8 w-[112px] rounded-lg text-xs sm:w-[120px]"
+                    aria-label="Sales overview period"
                   >
-                    {label}
-                  </Button>
-                ))}
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {CHART_PERIODS.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div
+                  className="inline-flex h-8 items-center rounded-lg border border-border/60 bg-muted/30 p-0.5"
+                  role="group"
+                  aria-label="Chart metric"
+                >
+                  {(["revenue", "orders"] as const).map((metric) => (
+                    <Button
+                      key={metric}
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className={cn(
+                        "h-7 rounded-md px-2.5 text-xs capitalize",
+                        chartMetric === metric &&
+                          "bg-background text-foreground shadow-sm hover:bg-background",
+                      )}
+                      aria-pressed={chartMetric === metric}
+                      onClick={() => setChartMetric(metric)}
+                    >
+                      {metric}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-xs">
+              <div
+                className="flex items-center justify-end gap-3 text-xs"
+              >
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-sm bg-primary" />
-                  <span className="text-muted-foreground">Revenue</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-primary/25" />
-                  <span className="text-muted-foreground">Orders</span>
+                  <span className="text-muted-foreground">
+                    {chartMetric === "revenue" ? "Revenue" : "Orders"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -310,11 +386,26 @@ export function DashboardPage() {
           <CardContent className="pt-2">
             {chartData.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-16">
-                No sales in the last {chartPeriodLabel}.
+                No sales for {chartPeriodLabel.toLowerCase()}.
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={chartData} barGap={2}>
+              <div className="w-full overflow-x-auto">
+                <div
+                  className={cn(
+                    "h-[320px] w-full",
+                    chartPeriod === "monthly"
+                      ? "min-w-[760px]"
+                      : chartPeriod === "15-days"
+                        ? "min-w-[640px]"
+                        : "min-w-[560px]",
+                  )}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData}
+                      barGap={2}
+                      margin={{ top: 8, right: 8, bottom: 12, left: 0 }}
+                    >
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="hsl(var(--border))"
@@ -329,29 +420,23 @@ export function DashboardPage() {
                     }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `₱${v}`}
-                  />
-
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
+                    allowDecimals={chartMetric === "revenue"}
+                    tickFormatter={(value) =>
+                      chartMetric === "revenue" ? `₱${value}` : String(value)
+                    }
                   />
 
                   <XAxis
                     dataKey="day"
                     tick={{
-                      fontSize: 11,
+                      fontSize: chartPeriod === "7-days" ? 10 : 11,
                       fill: "hsl(var(--muted-foreground))",
                     }}
                     axisLine={false}
                     tickLine={false}
+                    interval={0}
+                    angle={chartPeriod === "15-days" ? -35 : 0}
+                    textAnchor={chartPeriod === "15-days" ? "end" : "middle"}
                   />
 
                   <Tooltip
@@ -363,9 +448,9 @@ export function DashboardPage() {
                       boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
                     }}
                     formatter={(value, name) => {
-                      if (name === "revenue" && typeof value === "number")
+                      if (chartMetric === "revenue" && typeof value === "number")
                         return [peso(value), "Revenue"];
-                      if (name === "orders")
+                      if (chartMetric === "orders")
                         return [`${value} orders`, "Orders"];
                       return [String(value ?? ""), String(name)];
                     }}
@@ -373,21 +458,19 @@ export function DashboardPage() {
 
                   <Bar
                     yAxisId="left"
-                    dataKey="revenue"
-                    fill="hsl(var(--primary))"
+                    dataKey={chartMetric}
+                    fill={
+                      chartMetric === "revenue"
+                        ? "hsl(var(--primary))"
+                        : "hsl(var(--primary) / 0.45)"
+                    }
                     radius={[6, 6, 0, 0]}
-                    maxBarSize={22}
+                    maxBarSize={chartPeriod === "monthly" ? 34 : 22}
                   />
-
-                  <Bar
-                    yAxisId="right"
-                    dataKey="orders"
-                    fill="hsl(var(--primary) / 0.25)"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={22}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
