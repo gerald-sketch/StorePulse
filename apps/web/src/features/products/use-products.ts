@@ -59,7 +59,10 @@ export function useCreateProduct() {
       const res = await api.post<Product>("/products", input);
       return res.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
   });
 }
 
@@ -73,7 +76,10 @@ export function useUpdateProduct() {
       const res = await api.patch<Product>(`/products/${id}`, input);
       return res.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
   });
 }
 
@@ -83,6 +89,9 @@ export function useDeleteProduct() {
     mutationFn: async (id: string) => {
       await api.delete(`/products/${id}`);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
   });
 }

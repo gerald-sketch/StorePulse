@@ -158,6 +158,7 @@ export function useCheckout() {
       return res.data;
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["reports"] });

@@ -142,6 +142,7 @@ export function PwaRuntime() {
       if (syncedCount > 0) {
         await Promise.all(
           [
+            ["inventory"],
             ["products"],
             ["dashboard"],
             ["reports"],

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-store";
+import { useBranchStore } from "@/lib/branch-store";
 import type { Product } from "@/features/products/use-products";
 
 export interface LowStockResponse {
@@ -32,20 +34,39 @@ export interface AdjustResult {
 }
 
 export function useLowStock(threshold = 5) {
+  const userId = useAuth((state) => state.user?.id);
+  const branchId = useBranchStore((state) => state.selectedBranchId);
   return useQuery({
-    queryKey: ["inventory", "low-stock", threshold],
+    queryKey: [
+      "inventory",
+      "low-stock",
+      userId ?? "anonymous",
+      branchId ?? "no-branch",
+      threshold,
+    ],
     queryFn: async () =>
       (
         await api.get<LowStockResponse>(
           `/inventory/low-stock?threshold=${threshold}`,
         )
       ).data,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 
 export function useProductsForInventory(search: string, categoryId?: string) {
+  const userId = useAuth((state) => state.user?.id);
+  const branchId = useBranchStore((state) => state.selectedBranchId);
   return useQuery({
-    queryKey: ["inventory", "products", search, categoryId ?? "all"],
+    queryKey: [
+      "inventory",
+      "products",
+      userId ?? "anonymous",
+      branchId ?? "no-branch",
+      search,
+      categoryId ?? "all",
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: "500" });
       if (search) params.set("search", search);
@@ -56,6 +77,8 @@ export function useProductsForInventory(search: string, categoryId?: string) {
       return res.data.items;
     },
     staleTime: 0,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 

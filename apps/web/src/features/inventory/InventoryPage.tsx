@@ -163,6 +163,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 };
 
 type StatusFilter = "ALL" | "LOW" | "OUT";
+const LOW_STOCK_THRESHOLD = 15;
 
 // ─── Mobile product card ───
 function ProductCard({
@@ -296,7 +297,9 @@ export function InventoryPage() {
       0,
     );
     const outOfStock = items.filter((p) => p.stock === 0).length;
-    const lowCount = items.filter((p) => p.stock > 0 && p.stock <= 5).length;
+    const lowCount = items.filter(
+      (p) => p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD,
+    ).length;
 
     return {
       totalSkus: items.length,
@@ -313,7 +316,9 @@ export function InventoryPage() {
     let items = [...(allProducts ?? [])];
 
     if (statusFilter === "LOW") {
-      items = items.filter((p) => p.stock > 0 && p.stock <= 5);
+      items = items.filter(
+        (p) => p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD,
+      );
     } else if (statusFilter === "OUT") {
       items = items.filter((p) => p.stock === 0);
     }
