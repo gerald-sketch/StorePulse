@@ -703,11 +703,11 @@ export function PosPage() {
 
   return (
     <>
-      <OfflineSalesQueue />
       <div className="space-y-4">
         <PageHeader
           title="Point of Sale"
           description="Tap a product to add it to the order"
+          pendingSync={<OfflineSalesQueue />}
         >
           <Badge variant="outline" className="border-border/60">
             {products.length} products

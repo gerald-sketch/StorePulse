@@ -1,7 +1,11 @@
 import { Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { usePwaStore } from "@/lib/pwa-store";
 
-export function PwaStatus() {
+interface PwaStatusProps {
+  showQueueStatus?: boolean;
+}
+
+export function PwaStatus({ showQueueStatus = true }: PwaStatusProps) {
   const online = usePwaStore((state) => state.online);
   const pendingSales = usePwaStore((state) => state.pendingSales);
   const attention = usePwaStore((state) => state.salesNeedingAttention);
@@ -23,7 +27,7 @@ export function PwaStatus() {
         )}
         {online ? "Online" : "Offline"}
       </span>
-      {(pendingSales > 0 || attention > 0) && (
+      {showQueueStatus && (pendingSales > 0 || attention > 0) && (
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
             attention > 0

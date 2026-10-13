@@ -6,6 +6,7 @@ interface PageHeaderProps {
   title: string;
   description: string;
   children?: ReactNode;
+  pendingSync?: ReactNode;
   className?: string;
 }
 
@@ -13,6 +14,7 @@ export function PageHeader({
   title,
   description,
   children,
+  pendingSync,
   className,
 }: PageHeaderProps) {
   return (
@@ -26,7 +28,8 @@ export function PageHeader({
         <p className="mt-0.5 text-sm text-slate-500">{description}</p>
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
-        <PwaStatus />
+        <PwaStatus showQueueStatus={!pendingSync} />
+        {pendingSync}
         <BranchSwitcher />
         {children}
       </div>

@@ -3,7 +3,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
-  CloudUpload,
   RefreshCw,
   Trash2,
   XCircle,
@@ -114,7 +113,6 @@ export function OfflineSalesQueue() {
   );
   const pendingSales = sales.filter((sale) => sale.status === "pending");
   const failedSales = sales.filter((sale) => sale.status === "needs-attention");
-  if (sales.length === 0 && visibleSyncedSales.length === 0) return null;
 
   const statusCount = pendingSales.length + failedSales.length;
 
@@ -138,130 +136,155 @@ export function OfflineSalesQueue() {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-50 flex justify-center md:bottom-6 md:left-auto md:right-6">
-      <section className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-xl border bg-card shadow-lg">
+    <div className="relative">
+      <section className="relative">
         <button
           type="button"
-          className="flex h-12 w-full items-center gap-2.5 px-3.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+            statusCount > 0
+              ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+              : "bg-green-500/10 text-green-700 hover:bg-green-500/15 dark:text-green-300"
+          }`}
           aria-expanded={expanded}
           aria-controls="offline-sales-list"
           onClick={() => setExpanded((current) => !current)}
         >
-          <CloudUpload className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="text-sm font-semibold">Pending Sync</span>
-          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
-            {statusCount}
-          </span>
+          {statusCount > 0 ? (
+            <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          )}
+          <span>{statusCount > 0 ? "Pending Sync" : "All synced"}</span>
+          {statusCount > 0 && (
+            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] tabular-nums">
+              {statusCount}
+            </span>
+          )}
           <ChevronDown
-            className={`ml-auto h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
             aria-hidden
           />
         </button>
         <div
           id="offline-sales-list"
-          className="border-t px-3 py-2.5"
-          hidden={!expanded}
+          className={`absolute right-0 top-full z-50 mt-2 grid w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border bg-card shadow-xl transition-[grid-template-rows,opacity] duration-200 ease-out ${
+            expanded
+              ? "grid-rows-[1fr] opacity-100"
+              : "pointer-events-none grid-rows-[0fr] opacity-0"
+          }`}
+          aria-hidden={!expanded}
+          inert={!expanded}
         >
-          {online && pendingSales.length > 0 && (
-            <div className="mb-2 flex justify-end">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs"
-                onClick={() => window.dispatchEvent(new Event("smallbiz-retry-offline-sales"))}
-              >
-                <RefreshCw className="h-3 w-3" />
-                Sync now
-              </Button>
-            </div>
-          )}
-          <ul className="max-h-64 space-y-1 overflow-y-auto">
-            {[
-              ...visibleSyncedSales.map((sale) => ({ sale, status: "synced" as const })),
-              ...sales.map((sale) => ({
-                sale,
-                status:
-                  sale.status === "needs-attention"
-                    ? ("failed" as const)
-                    : sale.id === syncingSaleId
-                      ? ("syncing" as const)
-                      : ("waiting" as const),
-              })),
-            ].map(({ sale, status }) => {
-              const statusStyles = {
-                waiting: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-                syncing: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-                synced: "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300",
-                failed: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300",
-              }[status];
-              const statusIconStyles = {
-                waiting: "text-amber-600 dark:text-amber-300",
-                syncing: "animate-spin text-blue-600 dark:text-blue-300",
-                synced: "text-green-600 dark:text-green-300",
-                failed: "text-red-600 dark:text-red-300",
-              }[status];
-              const StatusIcon = {
-                waiting: Clock3,
-                syncing: RefreshCw,
-                synced: CheckCircle2,
-                failed: XCircle,
-              }[status];
-              const statusLabel = {
-                waiting: "Pending",
-                syncing: "Syncing",
-                synced: "Synced",
-                failed: "Failed",
-              }[status];
+          <div className="min-h-0">
+            <div className="max-h-80 overflow-y-auto px-3 py-2.5">
+              {online && pendingSales.length > 0 && (
+                <div className="mb-2 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => window.dispatchEvent(new Event("smallbiz-retry-offline-sales"))}
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Sync now
+                  </Button>
+                </div>
+              )}
+              {sales.length > 0 || visibleSyncedSales.length > 0 ? (
+                <ul className="space-y-1">
+                  {[
+                    ...visibleSyncedSales.map((sale) => ({ sale, status: "synced" as const })),
+                    ...sales.map((sale) => ({
+                      sale,
+                      status:
+                        sale.status === "needs-attention"
+                          ? ("failed" as const)
+                          : sale.id === syncingSaleId
+                            ? ("syncing" as const)
+                            : ("waiting" as const),
+                    })),
+                  ].map(({ sale, status }) => {
+                    const statusStyles = {
+                      waiting: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+                      syncing: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+                      synced: "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300",
+                      failed: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+                    }[status];
+                    const statusIconStyles = {
+                      waiting: "text-amber-600 dark:text-amber-300",
+                      syncing: "animate-spin text-blue-600 dark:text-blue-300",
+                      synced: "text-green-600 dark:text-green-300",
+                      failed: "text-red-600 dark:text-red-300",
+                    }[status];
+                    const StatusIcon = {
+                      waiting: Clock3,
+                      syncing: RefreshCw,
+                      synced: CheckCircle2,
+                      failed: XCircle,
+                    }[status];
+                    const statusLabel = {
+                      waiting: "Pending",
+                      syncing: "Syncing",
+                      synced: "Synced",
+                      failed: "Failed",
+                    }[status];
 
-              return (
-                <li
-                  key={sale.id}
-                  className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <StatusIcon
-                      className={`h-4 w-4 shrink-0 ${statusIconStyles}`}
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{saleAmount(sale)}</div>
-                      <div className="text-xs text-muted-foreground">{saleTime(sale)}</div>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusStyles}`}>
-                      {statusLabel}
-                    </span>
-                    {status === "failed" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs text-red-700 hover:text-red-800 dark:text-red-300"
-                        onClick={() => void retry(sale)}
+                    return (
+                      <li
+                        key={sale.id}
+                        className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
                       >
-                        <RefreshCw className="h-3 w-3" />
-                        Retry
-                      </Button>
-                    )}
-                    {status !== "synced" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => void discard(sale)}
-                        aria-label="Discard sale"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="pt-2 text-center text-[11px] text-muted-foreground">
-            Auto-syncs when online
-          </p>
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <StatusIcon
+                            className={`h-4 w-4 shrink-0 ${statusIconStyles}`}
+                            aria-hidden
+                          />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">{saleAmount(sale)}</div>
+                            <div className="text-xs text-muted-foreground">{saleTime(sale)}</div>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusStyles}`}>
+                            {statusLabel}
+                          </span>
+                          {status === "failed" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs text-red-700 hover:text-red-800 dark:text-red-300"
+                              onClick={() => void retry(sale)}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Retry
+                            </Button>
+                          )}
+                          {status !== "synced" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => void discard(sale)}
+                              aria-label="Discard sale"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="py-3 text-center text-xs text-muted-foreground">
+                  No pending sales
+                </p>
+              )}
+              <p className="pt-2 text-center text-[11px] text-muted-foreground">
+                Auto-syncs when online
+              </p>
+            </div>
+          </div>
         </div>
       </section>
     </div>
