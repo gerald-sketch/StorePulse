@@ -207,7 +207,7 @@ export function OfflineSalesQueue() {
                 failed: XCircle,
               }[status];
               const statusLabel = {
-                waiting: "Waiting",
+                waiting: "Pending",
                 syncing: "Syncing",
                 synced: "Synced",
                 failed: "Failed",
