@@ -10,9 +10,11 @@ interface PwaState {
   installPrompt: InstallPromptEvent | null;
   pendingSales: number;
   salesNeedingAttention: number;
+  syncingSaleId: string | null;
   setOnline: (online: boolean) => void;
   setInstallPrompt: (event: InstallPromptEvent | null) => void;
   setSalesStatus: (pending: number, needsAttention: number) => void;
+  setSyncingSaleId: (saleId: string | null) => void;
 }
 
 export const usePwaStore = create<PwaState>((set) => ({
@@ -20,8 +22,10 @@ export const usePwaStore = create<PwaState>((set) => ({
   installPrompt: null,
   pendingSales: 0,
   salesNeedingAttention: 0,
+  syncingSaleId: null,
   setOnline: (online) => set({ online }),
   setInstallPrompt: (installPrompt) => set({ installPrompt }),
   setSalesStatus: (pendingSales, salesNeedingAttention) =>
     set({ pendingSales, salesNeedingAttention }),
+  setSyncingSaleId: (syncingSaleId) => set({ syncingSaleId }),
 }));

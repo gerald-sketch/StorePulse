@@ -40,6 +40,7 @@ export function PwaRuntime() {
   const setOnline = usePwaStore((state) => state.setOnline);
   const setInstallPrompt = usePwaStore((state) => state.setInstallPrompt);
   const setSalesStatus = usePwaStore((state) => state.setSalesStatus);
+  const setSyncingSaleId = usePwaStore((state) => state.setSyncingSaleId);
   const syncing = useRef(false);
   const connectionCheck = useRef<Promise<boolean> | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,6 +107,7 @@ export function PwaRuntime() {
 
       let syncedCount = 0;
       for (const sale of salesToSync) {
+        setSyncingSaleId(sale.id);
         try {
           const response = await api.post("/pos/checkout", sale.payload, {
             headers: { "Idempotency-Key": sale.id },
@@ -153,6 +155,7 @@ export function PwaRuntime() {
       console.error("Unable to sync offline sales", error);
       shouldRetry = true;
     } finally {
+      setSyncingSaleId(null);
       syncing.current = false;
       window.dispatchEvent(new Event("smallbiz-offline-queue-changed"));
       try {
@@ -170,7 +173,7 @@ export function PwaRuntime() {
         }, retryDelay.current);
       }
     }
-  }, [branchId, checkConnection, queryClient, refreshSalesStatus, user]);
+  }, [branchId, checkConnection, queryClient, refreshSalesStatus, setSyncingSaleId, user]);
 
   useEffect(() => {
     const updateConnection = async () => {
