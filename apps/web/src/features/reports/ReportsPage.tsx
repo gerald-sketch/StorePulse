@@ -10,9 +10,17 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BranchSwitcher } from "@/components/layout/BranchSwitcher";
 import { PwaStatus } from "@/components/pwa/PwaStatus";
 import {
@@ -43,6 +51,7 @@ import {
   Download,
   Loader2,
   ShoppingCart,
+  Search,
 } from "lucide-react";
 
 type GroupBy = "day" | "week" | "month";
@@ -82,9 +91,29 @@ function startOfBusinessWeek(date: string) {
   return start.toISOString().slice(0, 10);
 }
 
+function formatReportDate(period: string, groupBy: GroupBy) {
+  if (groupBy === "month") {
+    const [year, month] = period.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+
+  const date = new Date(`${period}T00:00:00.000Z`);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function ReportsPage() {
   const [groupBy, setGroupBy] = useState<GroupBy>("day");
   const [activeTab, setActiveTab] = useState<ReportTab>("sales");
+  const [salesSearch, setSalesSearch] = useState("");
   const today = businessToday();
   const [dateRange, setDateRange] = useState(() => ({
     from: shiftDate(today, -29),
@@ -134,24 +163,44 @@ export function ReportsPage() {
     return {
       period:
         groupBy === "month"
-          ? r.period.slice(0, 7)
+          ? formatReportDate(r.period, groupBy)
           : groupBy === "week"
-            ? `Week of ${r.period.slice(5)}`
-            : r.period.slice(5),
+            ? `Week of ${new Date(`${r.period}T00:00:00.000Z`).toLocaleDateString(
+                "en-US",
+                { month: "short", day: "numeric", timeZone: "UTC" },
+              )}`
+            : new Date(`${r.period}T00:00:00.000Z`).toLocaleDateString(
+                "en-US",
+                { month: "short", day: "numeric", timeZone: "UTC" },
+              ),
       total: r.total,
       subtotal: r.subtotal,
       discount: r.discount,
       isCurrentPeriod,
     };
   });
+  const visibleSalesRows = (summary.data?.rows ?? []).filter((row) =>
+    formatReportDate(row.period, groupBy)
+      .toLocaleLowerCase()
+      .includes(salesSearch.trim().toLocaleLowerCase()),
+  );
+  const salesTotals = visibleSalesRows.reduce(
+    (totals, row) => ({
+      salesCount: totals.salesCount + row.salesCount,
+      subtotal: totals.subtotal + row.subtotal,
+      discount: totals.discount + row.discount,
+      total: totals.total + row.total,
+    }),
+    { salesCount: 0, subtotal: 0, discount: 0, total: 0 },
+  );
 
   return (
     <div className="min-w-0 space-y-4 sm:space-y-6">
       <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0">
-          <h2 className="text-[22px] font-semibold tracking-tight text-slate-900">
+          <h1 className="text-[22px] font-semibold tracking-tight text-slate-900">
             Reports
-          </h2>
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
             Business insights and analytics
           </p>
@@ -255,30 +304,33 @@ export function ReportsPage() {
               </fieldset>
             )}
             {activeTab === "sales" && (
-              <div className="flex items-center justify-between gap-3 sm:justify-start">
-                <span className="text-xs font-medium text-slate-500">
+              <div className="flex min-w-0 items-center justify-between gap-3 sm:justify-start">
+                <label
+                  htmlFor="reports-group-by"
+                  className="shrink-0 text-xs font-medium text-slate-500"
+                >
                   Group by
-                </span>
-                <ToggleGroup
-                  type="single"
+                </label>
+                <Select
                   value={groupBy}
                   onValueChange={(value) => {
-                    if (value) setGroupBy(value as GroupBy);
+                    if (value === "day" || value === "week" || value === "month") {
+                      setGroupBy(value);
+                    }
                   }}
-                  aria-label="Sales grouping period"
-                  className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-1"
                 >
-                  {(["day", "week", "month"] as const).map((period) => (
-                    <ToggleGroupItem
-                      key={period}
-                      value={period}
-                      aria-label={`By ${period}`}
-                      className="h-8 rounded-lg px-3 text-xs capitalize data-[state=on]:bg-teal-700 data-[state=on]:text-white data-[state=on]:shadow-sm"
-                    >
-                      By {period}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
+                  <SelectTrigger
+                    id="reports-group-by"
+                    className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm sm:w-36"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="day">Day</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -294,7 +346,7 @@ export function ReportsPage() {
                 <Card className="min-h-[148px] rounded-2xl border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium text-slate-500">
-                      Total Sales
+                      Total Transactions
                     </CardTitle>
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
                       <BarChart3 className="h-[18px] w-[18px]" />
@@ -310,7 +362,7 @@ export function ReportsPage() {
                 <Card className="min-h-[148px] rounded-2xl border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium text-slate-500">
-                      Revenue
+                      Gross Revenue
                     </CardTitle>
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                       <CircleDollarSign className="h-[18px] w-[18px]" />
@@ -358,8 +410,8 @@ export function ReportsPage() {
                     </p>
                   </div>
                   <div className="inline-flex shrink-0 items-center gap-2 text-xs text-slate-500">
-                    <span className="h-2.5 w-2.5 rounded-sm bg-teal-600" />
-                    Gross revenue
+                    <span className="h-2.5 w-2.5 rounded-full bg-teal-600" />
+                    Gross Revenue
                   </div>
                 </CardHeader>
                 <CardContent className="min-w-0 p-3 pt-4 sm:p-6 sm:pt-4">
@@ -381,11 +433,12 @@ export function ReportsPage() {
                         />
                         <XAxis
                           dataKey="period"
-                          tick={{ fontSize: 10, fill: "#6B7280" }}
+                          tick={{ fontSize: 11, fill: "#6B7280" }}
                           axisLine={false}
                           tickLine={false}
                           stroke="#9CA3AF"
-                          interval="preserveStartEnd"
+                          interval="preserveStart"
+                          minTickGap={16}
                         />
                         <YAxis
                           tick={{ fontSize: 10, fill: "#6B7280" }}
@@ -393,7 +446,10 @@ export function ReportsPage() {
                           tickLine={false}
                           width={76}
                           tickFormatter={(value: number) =>
-                            `₱${value.toLocaleString("en-PH")}`
+                            `₱${value.toLocaleString("en-PH", {
+                              notation: value >= 100000 ? "compact" : "standard",
+                              maximumFractionDigits: 1,
+                            })}`
                           }
                         />
                         <Tooltip
@@ -413,8 +469,8 @@ export function ReportsPage() {
                         />
                         <Bar
                           dataKey="total"
-                          fill="#0D9488"
-                          radius={[6, 6, 0, 0]}
+                          fill="#0F766E"
+                          radius={[8, 8, 0, 0]}
                           maxBarSize={44}
                           minPointSize={3}
                         >
@@ -432,49 +488,102 @@ export function ReportsPage() {
                 </CardContent>
               </Card>
 
-              <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                <Table className="min-w-[600px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Period</TableHead>
-                      <TableHead className="text-right">Sales</TableHead>
-                      <TableHead className="text-right">Subtotal</TableHead>
-                      <TableHead className="text-right">Discount</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {summary.data.rows.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={5}
-                          className="text-center text-muted-foreground py-8"
-                        >
-                          No data in this range.
-                        </TableCell>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Daily Breakdown
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Transactions and revenue for the selected range
+                    </p>
+                  </div>
+                  <div className="relative w-full sm:max-w-xs">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      type="search"
+                      value={salesSearch}
+                      onChange={(event) => setSalesSearch(event.target.value)}
+                      placeholder="Search date..."
+                      aria-label="Search daily breakdown dates"
+                      className="h-9 rounded-lg border-slate-200 pl-9 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-[28rem] overflow-auto">
+                  <Table className="min-w-[640px]">
+                    <TableHeader className="sticky top-0 z-10 bg-slate-50">
+                      <TableRow className="hover:bg-slate-50">
+                        <TableHead className="bg-slate-50">Date</TableHead>
+                        <TableHead className="bg-slate-50 text-right">Sales</TableHead>
+                        <TableHead className="bg-slate-50 text-right">Subtotal</TableHead>
+                        <TableHead className="bg-slate-50 text-right">Discount</TableHead>
+                        <TableHead className="bg-slate-50 text-right">Total</TableHead>
                       </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleSalesRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={5}
+                            className="py-10 text-center text-sm text-muted-foreground"
+                          >
+                            {salesSearch.trim()
+                              ? "No dates match your search."
+                              : "No data in this range."}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        visibleSalesRows.map((row, index) => (
+                          <TableRow
+                            key={row.period}
+                            className={cn(
+                              "transition-colors hover:bg-teal-50/60",
+                              index % 2 === 1 && "bg-slate-50/60",
+                            )}
+                          >
+                            <TableCell className="font-medium text-slate-800">
+                              {formatReportDate(row.period, groupBy)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {row.salesCount}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-slate-600">
+                              {peso(row.subtotal)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-slate-600">
+                              {peso(row.discount)}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold tabular-nums text-slate-900">
+                              {peso(row.total)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                    {visibleSalesRows.length > 0 && (
+                      <tfoot className="sticky bottom-0 z-10 bg-teal-50">
+                        <TableRow className="border-t-2 border-teal-100 hover:bg-teal-50">
+                          <TableCell className="font-bold text-slate-900">
+                            Total
+                          </TableCell>
+                          <TableCell className="text-right font-bold tabular-nums">
+                            {salesTotals.salesCount}
+                          </TableCell>
+                          <TableCell className="text-right font-bold tabular-nums">
+                            {peso(salesTotals.subtotal)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold tabular-nums">
+                            {peso(salesTotals.discount)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold tabular-nums text-teal-800">
+                            {peso(salesTotals.total)}
+                          </TableCell>
+                        </TableRow>
+                      </tfoot>
                     )}
-                    {summary.data.rows.map((r) => (
-                      <TableRow key={r.period}>
-                        <TableCell className="font-medium">
-                          {r.period}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {r.salesCount}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {peso(r.subtotal)}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {peso(r.discount)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {peso(r.total)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                  </Table>
+                </div>
               </div>
             </>
           )}
