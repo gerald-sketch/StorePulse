@@ -140,7 +140,7 @@ export function OfflineSalesQueue() {
       <section className="relative">
         <button
           type="button"
-          className={`flex h-11 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9 ${
+          className={`mx-auto flex h-11 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:mx-0 sm:h-9 ${
             statusCount > 0
               ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
               : "bg-green-500/10 text-green-700 hover:bg-green-500/15 dark:text-green-300"
