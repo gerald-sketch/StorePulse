@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth-store";
 import { useBranchStore } from "@/lib/branch-store";
 import { useBranches } from "@/features/branches/use-branches";
 
-export function BranchSwitcher() {
+export function BranchSwitcher({ compact = false }: { compact?: boolean }) {
   const role = useAuth((state) => state.user?.role);
   const selectedBranchId = useBranchStore((state) => state.selectedBranchId);
   const setSelectedBranchId = useBranchStore(
@@ -44,15 +44,19 @@ export function BranchSwitcher() {
 
   if (role !== "OWNER" || branches.length < 2) {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p
+        className={`min-w-0 truncate text-xs text-muted-foreground ${
+          compact ? "max-w-[min(30vw,9rem)] shrink" : ""
+        }`}
+      >
         Branch: <span className="font-medium text-foreground">{activeBranch.name}</span>
       </p>
     );
   }
 
   return (
-    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-      <span>Branch</span>
+    <label className="flex min-w-0 shrink-0 items-center gap-1 text-xs text-muted-foreground">
+      <span>{compact ? "Branch:" : "Branch"}</span>
       <select
         aria-label="Active branch"
         value={activeBranch.id}
@@ -60,7 +64,9 @@ export function BranchSwitcher() {
           setSelectedBranchId(event.target.value);
           void queryClient.invalidateQueries();
         }}
-        className="h-9 max-w-[min(60vw,18rem)] rounded-lg border border-input bg-background px-3 text-sm font-medium text-foreground"
+        className={`h-9 max-w-[min(60vw,18rem)] rounded-lg border border-input bg-background px-3 text-sm font-medium text-foreground ${
+          compact ? "h-7 max-w-[min(28vw,9rem)] px-1.5 text-xs" : ""
+        }`}
       >
         {branches.map((branch) => (
           <option key={branch.id} value={branch.id}>

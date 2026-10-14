@@ -659,11 +659,12 @@ export function PosPage() {
         <PageHeader
           title="Point of Sale"
           description="Tap a product to add it to the order"
-          pendingSync={<OfflineSalesQueue />}
+          compactStatus
+          pendingSync={<OfflineSalesQueue compact />}
         >
-          <Badge variant="outline" className="border-border/60">
+          <span className="text-muted-foreground">
             {products.length} products
-          </Badge>
+          </span>
         </PageHeader>
         <div className="lg:h-[calc(100vh-12rem)] grid gap-4 lg:grid-cols-[1fr_420px]">
         <div className="flex flex-col min-w-0 lg:min-h-0">

@@ -19,7 +19,7 @@ import {
   updatePendingSale,
 } from "@/lib/offline-store";
 
-export function OfflineSalesQueue() {
+export function OfflineSalesQueue({ compact = false }: { compact?: boolean }) {
   const user = useAuth((state) => state.user);
   const branchId = useBranchStore((state) => state.selectedBranchId);
   const online = usePwaStore((state) => state.online);
@@ -136,11 +136,13 @@ export function OfflineSalesQueue() {
   }
 
   return (
-    <div className="relative w-full sm:w-auto">
+    <div className={`relative shrink-0 ${compact ? "w-auto" : "w-full sm:w-auto"}`}>
       <section className="relative">
         <button
           type="button"
-          className={`mx-auto flex h-11 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:mx-0 sm:h-9 ${
+          className={`flex items-center gap-1 rounded-full px-2 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:gap-1.5 sm:px-3 sm:text-xs ${
+            compact ? "mx-0 h-8 whitespace-nowrap sm:h-9" : "mx-auto h-11 sm:mx-0"
+          } ${
             statusCount > 0
               ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
               : "bg-green-500/10 text-green-700 hover:bg-green-500/15 dark:text-green-300"
@@ -167,7 +169,11 @@ export function OfflineSalesQueue() {
         </button>
         <div
           id="offline-sales-list"
-          className={`absolute left-0 right-0 top-full z-50 mt-2 grid w-full overflow-hidden rounded-xl border bg-card shadow-xl transition-[grid-template-rows,opacity] duration-200 ease-out sm:left-auto sm:right-0 sm:w-[min(20rem,calc(100vw-2rem))] ${
+          className={`absolute top-full z-50 mt-2 grid overflow-hidden rounded-xl border bg-card shadow-xl transition-[grid-template-rows,opacity] duration-200 ease-out ${
+            compact
+              ? "right-0 w-[min(20rem,calc(100vw-2rem))]"
+              : "left-0 right-0 w-full sm:left-auto sm:w-[min(20rem,calc(100vw-2rem))]"
+          } ${
             expanded
               ? "grid-rows-[1fr] opacity-100"
               : "pointer-events-none grid-rows-[0fr] opacity-0"

@@ -3,12 +3,37 @@ import { usePwaStore } from "@/lib/pwa-store";
 
 interface PwaStatusProps {
   showQueueStatus?: boolean;
+  compact?: boolean;
 }
 
-export function PwaStatus({ showQueueStatus = true }: PwaStatusProps) {
+export function PwaStatus({
+  showQueueStatus = true,
+  compact = false,
+}: PwaStatusProps) {
   const online = usePwaStore((state) => state.online);
   const pendingSales = usePwaStore((state) => state.pendingSales);
   const attention = usePwaStore((state) => state.salesNeedingAttention);
+
+  if (compact) {
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-medium ${
+          online
+            ? "text-emerald-700 dark:text-emerald-300"
+            : "text-orange-700 dark:text-orange-300"
+        }`}
+        role="status"
+      >
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            online ? "bg-emerald-500" : "bg-orange-500"
+          }`}
+          aria-hidden
+        />
+        {online ? "Online" : "Offline"}
+      </span>
+    );
+  }
 
   return (
     <div className="flex min-h-9 flex-wrap items-center justify-end gap-2 text-xs">
