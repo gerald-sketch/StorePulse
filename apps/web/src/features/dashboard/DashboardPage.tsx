@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-store";
 import { useNavigate } from "react-router-dom";
+import { BranchSwitcher } from "@/components/layout/BranchSwitcher";
+import { PwaStatus } from "@/components/pwa/PwaStatus";
 import {
   BarChart,
   Bar,
@@ -37,8 +39,6 @@ import {
   Package,
   ArrowRight,
   Calendar,
-  Plus,
-  FileText,
 } from "lucide-react";
 
 interface Summary {
@@ -281,35 +281,10 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl h-9"
-            onClick={() => navigate("/reports")}
-          >
-            <FileText className="h-3.5 w-3.5 mr-2" />
-            <span className="hidden sm:inline">Reports</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl h-9"
-            onClick={() => navigate("/products")}
-          >
-            <Plus className="h-3.5 w-3.5 mr-2" />
-            <span className="hidden sm:inline">Add Product</span>
-          </Button>
-
-          <Button
-            size="sm"
-            className="rounded-xl h-9"
-            onClick={() => navigate("/pos")}
-          >
-            <ShoppingCart className="h-3.5 w-3.5 mr-2" />
-            <span className="hidden sm:inline">New Sale</span>
-          </Button>
+        <div className="flex shrink-0 items-center gap-2.5 text-xs sm:gap-3">
+          <PwaStatus compact />
+          <span className="h-4 w-px bg-border" aria-hidden />
+          <BranchSwitcher compact />
         </div>
       </div>
 
