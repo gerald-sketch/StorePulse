@@ -43,6 +43,7 @@ interface NavItem {
 }
 
 const pagesWithOwnHeader = new Set([
+  "/dashboard",
   "/reports",
   "/pos",
   "/products",
