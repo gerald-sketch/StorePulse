@@ -30,7 +30,7 @@ export function PwaStatus({
           }`}
           aria-hidden
         />
-        {online ? "Online" : "Offline"}
+        <span className="sr-only">{online ? "Online" : "Offline"}</span>
       </span>
     );
   }

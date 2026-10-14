@@ -49,14 +49,15 @@ export function BranchSwitcher({ compact = false }: { compact?: boolean }) {
           compact ? "max-w-[min(30vw,9rem)] shrink" : ""
         }`}
       >
-        Branch: <span className="font-medium text-foreground">{activeBranch.name}</span>
+        {!compact && "Branch: "}
+        <span className="font-medium text-foreground">{activeBranch.name}</span>
       </p>
     );
   }
 
   return (
     <label className="flex min-w-0 shrink-0 items-center gap-1 text-xs text-muted-foreground">
-      <span>{compact ? "Branch:" : "Branch"}</span>
+      <span className={compact ? "sr-only" : ""}>Branch</span>
       <select
         aria-label="Active branch"
         value={activeBranch.id}
