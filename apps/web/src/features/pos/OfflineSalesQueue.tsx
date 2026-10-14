@@ -136,11 +136,11 @@ export function OfflineSalesQueue() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative w-full sm:w-auto">
       <section className="relative">
         <button
           type="button"
-          className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+          className={`flex h-11 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9 ${
             statusCount > 0
               ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
               : "bg-green-500/10 text-green-700 hover:bg-green-500/15 dark:text-green-300"
@@ -167,7 +167,7 @@ export function OfflineSalesQueue() {
         </button>
         <div
           id="offline-sales-list"
-          className={`absolute right-0 top-full z-50 mt-2 grid w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border bg-card shadow-xl transition-[grid-template-rows,opacity] duration-200 ease-out ${
+          className={`absolute left-0 right-0 top-full z-50 mt-2 grid w-full overflow-hidden rounded-xl border bg-card shadow-xl transition-[grid-template-rows,opacity] duration-200 ease-out sm:left-auto sm:right-0 sm:w-[min(20rem,calc(100vw-2rem))] ${
             expanded
               ? "grid-rows-[1fr] opacity-100"
               : "pointer-events-none grid-rows-[0fr] opacity-0"
@@ -176,13 +176,13 @@ export function OfflineSalesQueue() {
           inert={!expanded}
         >
           <div className="min-h-0">
-            <div className="max-h-80 overflow-y-auto px-3 py-2.5">
+            <div className="max-h-[min(20rem,calc(100dvh-10rem))] overflow-y-auto px-3 py-2.5">
               {online && pendingSales.length > 0 && (
                 <div className="mb-2 flex justify-end">
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-2 text-xs"
+                    className="h-10 px-3 text-xs sm:h-7 sm:px-2"
                     onClick={() => window.dispatchEvent(new Event("smallbiz-retry-offline-sales"))}
                   >
                     <RefreshCw className="h-3 w-3" />
@@ -252,7 +252,7 @@ export function OfflineSalesQueue() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 px-2 text-xs text-red-700 hover:text-red-800 dark:text-red-300"
+                              className="h-10 px-3 text-xs text-red-700 hover:text-red-800 dark:text-red-300 sm:h-7 sm:px-2"
                               onClick={() => void retry(sale)}
                             >
                               <RefreshCw className="h-3 w-3" />
@@ -263,7 +263,7 @@ export function OfflineSalesQueue() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive sm:h-7 sm:w-7"
                               onClick={() => void discard(sale)}
                               aria-label="Discard sale"
                             >
