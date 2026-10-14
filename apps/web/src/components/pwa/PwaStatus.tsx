@@ -1,4 +1,4 @@
-import { Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { usePwaStore } from "@/lib/pwa-store";
 
 interface PwaStatusProps {
@@ -45,11 +45,12 @@ export function PwaStatus({
         }`}
         role="status"
       >
-        {online ? (
-          <Wifi className="h-3.5 w-3.5" />
-        ) : (
-          <WifiOff className="h-3.5 w-3.5" />
-        )}
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            online ? "bg-emerald-500" : "bg-orange-500"
+          }`}
+          aria-hidden
+        />
         {online ? "Online" : "Offline"}
       </span>
       {showQueueStatus && (pendingSales > 0 || attention > 0) && (
