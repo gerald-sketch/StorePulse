@@ -234,7 +234,7 @@ export function DashboardPage() {
           const value = dailyByDay.get(day);
           return {
             day: date.toLocaleDateString("en-US", {
-              weekday: "long",
+              weekday: "short",
               timeZone: "UTC",
             }),
             revenue: value?.total ?? 0,
@@ -254,7 +254,7 @@ export function DashboardPage() {
         : data.monthly12.map((entry) => ({
             day: new Date(Date.UTC(2000, entry.month - 1, 1)).toLocaleDateString(
               "en-US",
-              { month: "long", timeZone: "UTC" },
+              { month: "short", timeZone: "UTC" },
             ),
             revenue: entry.total,
             orders: entry.count,
@@ -314,8 +314,8 @@ export function DashboardPage() {
       </div>
 
       {/* ─── Main Grid ─── */}
-      <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-        <Card className="card-soft">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className="card-soft min-w-0">
           <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <CardTitle className="text-base font-semibold">
@@ -389,87 +389,86 @@ export function DashboardPage() {
                 No sales for {chartPeriodLabel.toLowerCase()}.
               </p>
             ) : (
-              <div className="w-full overflow-x-auto">
-                <div
-                  className={cn(
-                    "h-[320px] w-full",
-                    chartPeriod === "monthly"
-                      ? "min-w-[760px]"
-                      : chartPeriod === "15-days"
-                        ? "min-w-[640px]"
-                        : "min-w-[560px]",
-                  )}
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData}
-                      barGap={2}
-                      margin={{ top: 8, right: 8, bottom: 12, left: 0 }}
-                    >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                    vertical={false}
-                  />
+              <div className="h-[280px] w-full min-w-0 sm:h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData}
+                    barGap={2}
+                    margin={{ top: 8, right: 4, bottom: 28, left: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                      vertical={false}
+                    />
 
-                  <YAxis
-                    yAxisId="left"
-                    tick={{
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={chartMetric === "revenue"}
-                    tickFormatter={(value) =>
-                      chartMetric === "revenue" ? `₱${value}` : String(value)
-                    }
-                  />
+                    <YAxis
+                      yAxisId="left"
+                      tick={{
+                        fontSize: 11,
+                        fill: "hsl(var(--muted-foreground))",
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={chartMetric === "revenue"}
+                      tickFormatter={(value) =>
+                        chartMetric === "revenue"
+                          ? `₱${Intl.NumberFormat("en", {
+                              notation: "compact",
+                              maximumFractionDigits: 1,
+                            }).format(Number(value))}`
+                          : String(value)
+                      }
+                    />
 
-                  <XAxis
-                    dataKey="day"
-                    tick={{
-                      fontSize: chartPeriod === "7-days" ? 10 : 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    angle={chartPeriod === "15-days" ? -35 : 0}
-                    textAnchor={chartPeriod === "15-days" ? "end" : "middle"}
-                  />
+                    <XAxis
+                      dataKey="day"
+                      tick={{
+                        fontSize: 9,
+                        fill: "hsl(var(--muted-foreground))",
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={chartPeriod === "15-days" ? 1 : 0}
+                      angle={chartPeriod === "15-days" ? -35 : 0}
+                      textAnchor={chartPeriod === "15-days" ? "end" : "middle"}
+                    />
 
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 12,
-                      fontSize: 12,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-                    }}
-                    formatter={(value, name) => {
-                      if (chartMetric === "revenue" && typeof value === "number")
-                        return [peso(value), "Revenue"];
-                      if (chartMetric === "orders")
-                        return [`${value} orders`, "Orders"];
-                      return [String(value ?? ""), String(name)];
-                    }}
-                  />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: 12,
+                        fontSize: 12,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                      }}
+                      formatter={(value, name) => {
+                        if (
+                          chartMetric === "revenue" &&
+                          typeof value === "number"
+                        ) {
+                          return [peso(value), "Revenue"];
+                        }
+                        if (chartMetric === "orders") {
+                          return [`${value} orders`, "Orders"];
+                        }
+                        return [String(value ?? ""), String(name)];
+                      }}
+                    />
 
-                  <Bar
-                    yAxisId="left"
-                    dataKey={chartMetric}
-                    fill={
-                      chartMetric === "revenue"
-                        ? "hsl(var(--primary))"
-                        : "hsl(var(--primary) / 0.45)"
-                    }
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={chartPeriod === "monthly" ? 34 : 22}
-                  />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                    <Bar
+                      yAxisId="left"
+                      dataKey={chartMetric}
+                      fill={
+                        chartMetric === "revenue"
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--primary) / 0.45)"
+                      }
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={chartPeriod === "monthly" ? 34 : 22}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
           </CardContent>
