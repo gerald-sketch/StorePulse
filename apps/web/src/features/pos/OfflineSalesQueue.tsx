@@ -232,7 +232,7 @@ export function OfflineSalesQueue() {
                     return (
                       <li
                         key={sale.id}
-                        className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
+                        className="flex flex-col gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex min-w-0 items-center gap-2.5">
                           <StatusIcon
@@ -244,7 +244,7 @@ export function OfflineSalesQueue() {
                             <div className="text-xs text-muted-foreground">{saleTime(sale)}</div>
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="flex w-full shrink-0 items-center justify-between gap-1.5 sm:w-auto sm:justify-start">
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusStyles}`}>
                             {statusLabel}
                           </span>
