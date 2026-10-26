@@ -1,10 +1,10 @@
-# SmallBiz — Small Business Management SaaS
+# StorePulse — Small Business Management SaaS
 
 One platform for small businesses to manage their entire operation: inventory, POS, purchasing, suppliers, customers, staff, expenses, and reporting. Built for the Philippine market — VAT-inclusive pricing, GCash/Maya QR payments, peso formatting throughout.
 
-**[Live Demo](https://smallbiz-saas-web.vercel.app)** · **[API Status](https://smallbiz-saas.onrender.com/api/health)** · **[Report a Bug](https://github.com/gerald-sketch/smallbiz-saas/issues)**
+**[Live Demo](https://StorePulsee.vercel.app)** · **[API Status](https://StorePulse.onrender.com/api/health)** · **[Report a Bug](https://github.com/gerald-sketch/StorePulse/issues)**
 
-> **Status:** ✅ Deployed and live — [smallbiz-saas-web.vercel.app](https://smallbiz-saas-web.vercel.app)
+> **Status:** ✅ Deployed and live — [StorePulsee.vercel.app](https://StorePulsee.vercel.app)
 >
 > The live demo runs on free tiers (Render + Vercel + Neon). The first request after 15 minutes of inactivity may take 30–50 seconds while the API cold-starts.
 
